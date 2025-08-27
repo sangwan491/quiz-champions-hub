@@ -56,12 +56,17 @@ function parseJson<T>(req: Request): Promise<T> {
 }
 
 function safeParse<T>(value: unknown, fallback: T): T {
-  if (typeof value !== "string") return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
+  if (value === null || value === undefined) return fallback;
+  if (Array.isArray(value)) return value as T;
+  if (typeof value === "object") return value as T;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
   }
+  return fallback;
 }
 
 Deno.serve(async (req) => {

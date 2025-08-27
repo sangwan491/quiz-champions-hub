@@ -14,6 +14,8 @@ interface UserRegistrationProps {
 const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
   const [name, setName] = useState("");
   const [linkedinProfile, setLinkedinProfile] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -34,7 +36,9 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
     try {
       const user = await api.registerUser({
         name: name.trim(),
-        linkedinProfile: linkedinProfile.trim()
+        linkedinProfile: linkedinProfile.trim(),
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
       });
       
       // Store user in localStorage for session persistence
@@ -80,6 +84,30 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
               placeholder="Enter your full name"
               className="mt-1"
               required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email (optional)</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="phone">Phone (optional)</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+              className="mt-1"
             />
           </div>
 

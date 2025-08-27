@@ -49,8 +49,8 @@ const Header = () => {
               </>
             )}
 
-            {/* Show admin button on admin routes or always if needed */}
-            {(isAdminRoute || !isAdminRoute) && (
+            {/* Show Admin except on home route */}
+            {location.pathname !== '/' && (
               <Button
                 variant={isActive("/admin") ? "default" : "ghost"}
                 size="sm"

@@ -23,6 +23,8 @@ export interface User {
   id: string;
   name: string;
   linkedinProfile: string;
+  email?: string;
+  phone?: string;
   registeredAt: string;
 }
 
@@ -47,7 +49,7 @@ export interface QuizResult {
 }
 
 // API service functions
-const API_BASE = '/api';
+const API_BASE = 'https://tddkqotjksbqxzdtsygc.functions.supabase.co/api';
 
 export const api = {
   // Quiz management
@@ -142,7 +144,7 @@ export const api = {
   },
 
   // User management
-  registerUser: async (user: { name: string; linkedinProfile?: string }): Promise<User> => {
+  registerUser: async (user: { name: string; linkedinProfile?: string; email?: string; phone?: string }): Promise<User> => {
     const response = await fetch(`${API_BASE}/users/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

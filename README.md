@@ -1,73 +1,162 @@
-# Welcome to your Lovable project
+# Quiz Champions Hub
 
-## Project info
+A full-stack quiz application with real-time session management, user registration, and admin controls.
 
-**URL**: https://lovable.dev/projects/e897b411-2a47-4e9e-bd5d-bba3af8c79c5
+## Features
 
-## How can I edit this code?
+### For Users
+- **User Registration**: Name and LinkedIn profile registration
+- **Real-time Quiz Sessions**: Join active quiz sessions started by admins
+- **Dynamic Timer**: Configurable time per question set by admin
+- **Live Leaderboard**: Real-time score tracking with global rankings
+- **Responsive Design**: Works on desktop and mobile devices
 
-There are several ways of editing your application.
+### For Admins
+- **Multiple Quiz Management**: Create and manage multiple quizzes
+- **Question Bank**: Add/edit/delete questions with categories and difficulty levels
+- **Session Control**: Start and stop quiz sessions in real-time
+- **Timer Configuration**: Set custom time per question for each quiz
+- **Leaderboard Management**: Reset leaderboard when needed
+- **Admin Panel**: Accessible via `/admin` route (hidden from main navigation)
 
-**Use Lovable**
+## Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e897b411-2a47-4e9e-bd5d-bba3af8c79c5) and start prompting.
+- **Frontend**: React + TypeScript + Vite
+- **UI Components**: Tailwind CSS + shadcn/ui
+- **Backend**: Express.js + Node.js
+- **Database**: JSON-based file storage
+- **State Management**: React hooks + localStorage
+- **Real-time Updates**: RESTful API
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd quiz-champions-hub
 ```
 
-**Edit a file directly in GitHub**
+2. Install dependencies
+```bash
+npm install
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Running the Application
 
-**Use GitHub Codespaces**
+#### Option 1: Run Both Frontend and Backend Together
+```bash
+npm run dev:full
+```
+This starts both the backend server (port 3001) and frontend dev server (port 8080).
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+#### Option 2: Run Separately
 
-## What technologies are used for this project?
+**Terminal 1 - Backend Server:**
+```bash
+npm run server
+```
+Server runs on http://localhost:3001
 
-This project is built with:
+**Terminal 2 - Frontend Development:**
+```bash
+npm run dev
+```
+Frontend runs on http://localhost:8080
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Access Points
 
-## How can I deploy this project?
+- **Main Application**: http://localhost:8080
+- **Admin Panel**: http://localhost:8080/admin
+- **API Endpoints**: http://localhost:3001/api
 
-Simply open [Lovable](https://lovable.dev/projects/e897b411-2a47-4e9e-bd5d-bba3af8c79c5) and click on Share -> Publish.
+## Usage Guide
 
-## Can I connect a custom domain to my Lovable project?
+### For Users
 
-Yes, you can!
+1. **Registration**: First-time users will see a registration form asking for name and LinkedIn profile
+2. **Join Quiz**: If there's an active quiz session, users can join immediately
+3. **Take Quiz**: Answer questions within the time limit set by admin
+4. **View Results**: See your score and check the leaderboard
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### For Admins
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1. **Access Admin Panel**: Navigate to `/admin` route
+2. **Create Quiz**: Add new quizzes with custom titles, descriptions, and timer settings
+3. **Manage Questions**: Add/edit/delete questions with categories, difficulty, and points
+4. **Control Sessions**: Start/stop quiz sessions from the Session Control tab
+5. **Monitor Results**: View and reset leaderboard from the Leaderboard tab
+
+## Database Structure
+
+The application uses JSON files for data storage:
+
+- `server/db/quizzes.json`: Quiz data and questions
+- `server/db/users.json`: Registered users
+- `server/db/sessions.json`: Current session state
+- `server/db/results.json`: Quiz results and leaderboard
+
+## API Endpoints
+
+### Quiz Management
+- `GET /api/quizzes` - Get all quizzes
+- `POST /api/quizzes` - Create new quiz
+- `PUT /api/quizzes/:id` - Update quiz
+- `DELETE /api/quizzes/:id` - Delete quiz
+
+### Question Management
+- `POST /api/quizzes/:quizId/questions` - Add question
+- `PUT /api/quizzes/:quizId/questions/:questionId` - Update question
+- `DELETE /api/quizzes/:quizId/questions/:questionId` - Delete question
+
+### Session Management
+- `GET /api/session` - Get current session
+- `POST /api/session/start` - Start quiz session
+- `POST /api/session/stop` - Stop quiz session
+- `GET /api/quiz/active` - Get active quiz for players
+
+### User & Results
+- `POST /api/users/register` - Register user
+- `GET /api/results` - Get leaderboard
+- `POST /api/results` - Submit quiz result
+- `DELETE /api/results` - Reset leaderboard
+
+## Development
+
+### Project Structure
+```
+quiz-champions-hub/
+├── src/                    # Frontend React app
+│   ├── components/         # UI components
+│   ├── pages/             # Page components
+│   ├── data/              # Data types and API functions
+│   └── hooks/             # Custom React hooks
+├── server/                # Backend Express server
+│   ├── index.js          # Main server file
+│   └── db/               # JSON database files
+└── public/               # Static assets
+```
+
+### Adding Features
+
+1. **New Quiz Features**: Update the Quiz interface in `src/data/questions.ts`
+2. **New API Endpoints**: Add routes in `server/index.js`
+3. **UI Components**: Add to `src/components/` using shadcn/ui patterns
+4. **New Pages**: Add to `src/pages/` and update routing in `src/App.tsx`
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+The build artifacts will be stored in the `dist/` directory.
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).

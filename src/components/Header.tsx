@@ -6,6 +6,7 @@ const Header = () => {
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
     <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
@@ -21,38 +22,46 @@ const Header = () => {
           </Link>
 
           <nav className="flex items-center space-x-2">
-            <Button
-              variant={isActive("/") ? "default" : "ghost"}
-              size="sm"
-              asChild
-            >
-              <Link to="/" className="flex items-center space-x-2">
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
-            </Button>
+            {/* Hide Home and Leaderboard links on admin routes */}
+            {!isAdminRoute && (
+              <>
+                <Button
+                  variant={isActive("/") ? "default" : "ghost"}
+                  size="sm"
+                  asChild
+                >
+                  <Link to="/" className="flex items-center space-x-2">
+                    <Home className="w-4 h-4" />
+                    <span className="hidden sm:inline">Home</span>
+                  </Link>
+                </Button>
 
-            <Button
-              variant={isActive("/leaderboard") ? "default" : "ghost"}
-              size="sm"
-              asChild
-            >
-              <Link to="/leaderboard" className="flex items-center space-x-2">
-                <Trophy className="w-4 h-4" />
-                <span className="hidden sm:inline">Leaderboard</span>
-              </Link>
-            </Button>
+                <Button
+                  variant={isActive("/leaderboard") ? "default" : "ghost"}
+                  size="sm"
+                  asChild
+                >
+                  <Link to="/leaderboard" className="flex items-center space-x-2">
+                    <Trophy className="w-4 h-4" />
+                    <span className="hidden sm:inline">Leaderboard</span>
+                  </Link>
+                </Button>
+              </>
+            )}
 
-            <Button
-              variant={isActive("/admin") ? "default" : "ghost"}
-              size="sm"
-              asChild
-            >
-              <Link to="/admin" className="flex items-center space-x-2">
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Link>
-            </Button>
+            {/* Show admin button on admin routes or always if needed */}
+            {(isAdminRoute || !isAdminRoute) && (
+              <Button
+                variant={isActive("/admin") ? "default" : "ghost"}
+                size="sm"
+                asChild
+              >
+                <Link to="/admin" className="flex items-center space-x-2">
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Link>
+              </Button>
+            )}
           </nav>
         </div>
       </div>

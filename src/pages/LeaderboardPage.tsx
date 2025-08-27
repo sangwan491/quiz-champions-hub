@@ -1,23 +1,69 @@
 import { useState, useEffect } from "react";
-import { Trophy, Medal, Award, Clock, Target } from "lucide-react";
+import { Trophy, Medal, Award, Clock, Target, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { sampleLeaderboard, type QuizResult } from "@/data/questions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { api, type QuizResult, type Quiz } from "@/data/questions";
 
 const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState<QuizResult[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [selectedQuizId, setSelectedQuizId] = useState<string>("all");
   const [filter, setFilter] = useState<'all' | 'today' | 'week'>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Combine sample data with stored results
-    const storedResults = JSON.parse(localStorage.getItem("quizResults") || "[]");
-    const allResults = [...sampleLeaderboard, ...storedResults];
-    
-    // Sort by score descending
-    const sortedResults = allResults.sort((a, b) => b.score - a.score);
-    
-    setLeaderboard(sortedResults);
+    loadQuizzes();
+    loadLeaderboard();
   }, []);
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, [selectedQuizId]);
+
+  const loadQuizzes = async () => {
+    try {
+      const quizzesData = await api.getQuizzes();
+      setQuizzes(quizzesData);
+    } catch (error) {
+      console.error('Failed to load quizzes:', error);
+    }
+  };
+
+  const loadLeaderboard = async (showToast = false) => {
+    try {
+      setIsRefreshing(true);
+      let results: QuizResult[];
+      
+      if (selectedQuizId === "all") {
+        results = await api.getResults();
+      } else {
+        results = await api.getQuizResults(selectedQuizId);
+      }
+      
+      setLeaderboard(results.sort((a, b) => b.score - a.score));
+      
+      if (showToast) {
+        toast({
+          title: "Refreshed",
+          description: "Leaderboard updated successfully"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load leaderboard:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load leaderboard",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   const getFilteredResults = () => {
     const now = new Date();
@@ -39,6 +85,12 @@ const LeaderboardPage = () => {
     }
   };
 
+  const getSelectedQuizTitle = () => {
+    if (selectedQuizId === "all") return "Global";
+    const quiz = quizzes.find(q => q.id === selectedQuizId);
+    return quiz ? quiz.title : "Unknown Quiz";
+  };
+
   const filteredResults = getFilteredResults();
 
   const getRankIcon = (rank: number) => {
@@ -57,11 +109,11 @@ const LeaderboardPage = () => {
   const getRankClass = (rank: number) => {
     switch (rank) {
       case 1:
-        return "bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border-yellow-500/20";
+        return "bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border-yellow-500/20 ring-1 ring-yellow-500/10";
       case 2:
-        return "bg-gradient-to-r from-gray-400/10 to-gray-500/10 border-gray-400/20";
+        return "bg-gradient-to-r from-gray-400/10 to-gray-500/10 border-gray-400/20 ring-1 ring-gray-400/10";
       case 3:
-        return "bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-orange-500/20";
+        return "bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-orange-500/20 ring-1 ring-orange-500/10";
       default:
         return "bg-card border-border";
     }
@@ -83,37 +135,93 @@ const LeaderboardPage = () => {
     });
   };
 
-  return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Global Leaderboard
-            </span>
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            See how you rank against other quiz masters
-          </p>
-        </div>
+  // Calculate accuracy percentage based on total possible points
+  const calculateAccuracy = (result: QuizResult) => {
+    if (!result.answers || result.answers.length === 0) {
+      // Fallback calculation if answers data isn't available
+      return Math.round((result.score / (result.totalQuestions * 30)) * 100);
+    }
+    
+    const totalPossiblePoints = result.answers.reduce((sum, answer) => {
+      return sum + (answer.points || 0);
+    }, 0);
+    
+    if (totalPossiblePoints === 0) return 0;
+    return Math.round((result.score / totalPossiblePoints) * 100);
+  };
 
-        {/* Filter Buttons */}
-        <div className="flex justify-center gap-2 mb-8">
-          {(['all', 'week', 'today'] as const).map((filterOption) => (
-            <Button
-              key={filterOption}
-              variant={filter === filterOption ? "default" : "outline"}
-              onClick={() => setFilter(filterOption)}
-              className="capitalize"
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
+        <div className="container mx-auto">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading leaderboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
+      <div className="container mx-auto max-w-4xl">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
+            🏆 Leaderboard
+          </h1>
+          <p className="text-lg text-muted-foreground mb-6">
+            {getSelectedQuizTitle()} Rankings
+          </p>
+          
+          {/* Controls */}
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
+            {/* Quiz Selection */}
+            <Select value={selectedQuizId} onValueChange={setSelectedQuizId}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Select quiz..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Global Leaderboard</SelectItem>
+                {quizzes.map((quiz) => (
+                  <SelectItem key={quiz.id} value={quiz.id}>
+                    {quiz.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Time Filter */}
+            <div className="flex bg-muted rounded-lg p-1">
+              {(['all', 'today', 'week'] as const).map((filterOption) => (
+                <Button
+                  key={filterOption}
+                  variant={filter === filterOption ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setFilter(filterOption)}
+                  className="capitalize"
+                >
+                  {filterOption === 'all' ? 'All Time' : filterOption}
+                </Button>
+              ))}
+            </div>
+
+            {/* Refresh Button */}
+            <Button 
+              onClick={() => loadLeaderboard(true)} 
+              disabled={isRefreshing}
+              variant="outline"
+              size="sm"
             >
-              {filterOption === 'all' ? 'All Time' : filterOption}
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          ))}
+          </div>
         </div>
 
         {/* Stats Cards */}
-        {filter === 'all' && (
+        {filter === 'all' && filteredResults.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="card-glass p-6 text-center animate-fade-in-up">
               <Trophy className="w-8 h-8 text-primary mx-auto mb-3" />
@@ -124,7 +232,7 @@ const LeaderboardPage = () => {
             <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.1s]">
               <Target className="w-8 h-8 text-secondary mx-auto mb-3" />
               <div className="text-2xl font-bold">
-                {filteredResults.length > 0 ? Math.round(filteredResults.reduce((acc, r) => acc + r.score, 0) / filteredResults.length) : 0}
+                {Math.round(filteredResults.reduce((acc, r) => acc + r.score, 0) / filteredResults.length)}
               </div>
               <p className="text-sm text-muted-foreground">Average Score</p>
             </Card>
@@ -132,7 +240,7 @@ const LeaderboardPage = () => {
             <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.2s]">
               <Clock className="w-8 h-8 text-accent mx-auto mb-3" />
               <div className="text-2xl font-bold">
-                {filteredResults.length > 0 ? formatTime(Math.round(filteredResults.reduce((acc, r) => acc + r.timeSpent, 0) / filteredResults.length)) : '0:00'}
+                {formatTime(Math.round(filteredResults.reduce((acc, r) => acc + r.timeSpent, 0) / filteredResults.length))}
               </div>
               <p className="text-sm text-muted-foreground">Average Time</p>
             </Card>
@@ -144,13 +252,20 @@ const LeaderboardPage = () => {
           {filteredResults.length === 0 ? (
             <Card className="card-glass p-8 text-center">
               <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No results yet</h3>
-              <p className="text-muted-foreground">Be the first to complete a quiz!</p>
+              <h3 className="text-xl font-semibold mb-2">
+                {filter === 'all' ? 'No results yet' : `No results for ${filter}`}
+              </h3>
+              <p className="text-muted-foreground">
+                {filter === 'all' 
+                  ? 'Be the first to complete a quiz!' 
+                  : 'Try changing the filter or check back later.'
+                }
+              </p>
             </Card>
           ) : (
             filteredResults.map((result, index) => {
               const rank = index + 1;
-              const percentage = Math.round((result.score / (result.totalQuestions * 30)) * 100);
+              const accuracy = calculateAccuracy(result);
               
               return (
                 <Card 
@@ -166,20 +281,21 @@ const LeaderboardPage = () => {
                       
                       <div>
                         <h3 className="font-semibold text-lg">{result.playerName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {formatDate(result.completedAt)}
-                        </p>
+                        <div className="text-sm text-muted-foreground">
+                          <p>{formatDate(result.completedAt)}</p>
+                          <p className="text-xs">{result.totalQuestions} questions</p>
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-6 text-right">
                       <div>
                         <div className="text-2xl font-bold text-primary">{result.score}</div>
-                        <p className="text-sm text-muted-foreground">Score</p>
+                        <p className="text-sm text-muted-foreground">Points</p>
                       </div>
                       
                       <div className="hidden sm:block">
-                        <div className="text-lg font-semibold">{percentage}%</div>
+                        <div className="text-lg font-semibold">{accuracy}%</div>
                         <p className="text-sm text-muted-foreground">Accuracy</p>
                       </div>
                       
@@ -194,6 +310,15 @@ const LeaderboardPage = () => {
             })
           )}
         </div>
+
+        {/* Current User's Rank (if they've played) */}
+        {filteredResults.length > 0 && (
+          <div className="mt-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Leaderboard updates in real-time as players complete quizzes
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

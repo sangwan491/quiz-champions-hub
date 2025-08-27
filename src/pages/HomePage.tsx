@@ -1,21 +1,105 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, Trophy, Brain, Zap } from "lucide-react";
+import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import heroImage from "@/assets/quiz-hero.jpg";
+import { useToast } from "@/hooks/use-toast";
+import { api, type Quiz, type User } from "@/data/questions";
+import UserRegistration from "@/components/UserRegistration";
 
 const HomePage = () => {
-  const [playerName, setPlayerName] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+  const [activeQuizzes, setActiveQuizzes] = useState<Quiz[]>([]);
+  const [userAttempts, setUserAttempts] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const startQuiz = () => {
-    if (playerName.trim()) {
-      localStorage.setItem("playerName", playerName.trim());
-      navigate("/quiz");
+  useEffect(() => {
+    // Check if user is already registered
+    const savedUser = localStorage.getItem("currentUser");
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error("Error parsing saved user:", error);
+        localStorage.removeItem("currentUser");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadActiveQuizzes();
+    }
+  }, [user]);
+
+  const loadActiveQuizzes = async () => {
+    try {
+      setIsLoading(true);
+      const quizzes = await api.getActiveQuizzes();
+      setActiveQuizzes(quizzes);
+      
+      // Check user attempts for each active quiz
+      if (user) {
+        const attempts: Record<string, boolean> = {};
+        for (const quiz of quizzes) {
+          try {
+            const attemptData = await api.checkUserAttempt(user.id, quiz.id);
+            attempts[quiz.id] = attemptData.hasAttempted;
+          } catch (error) {
+            console.error(`Error checking attempt for quiz ${quiz.id}:`, error);
+            attempts[quiz.id] = false;
+          }
+        }
+        setUserAttempts(attempts);
+      }
+    } catch (error) {
+      console.error('Error loading active quizzes:', error);
+      setActiveQuizzes([]);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleUserRegistered = (registeredUser: User) => {
+    setUser(registeredUser);
+    localStorage.setItem("currentUser", JSON.stringify(registeredUser));
+  };
+
+  const startQuiz = async (quiz: Quiz) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Please register first to join the quiz",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if user has already attempted this quiz
+    if (userAttempts[quiz.id]) {
+      toast({
+        title: "Already Attempted",
+        description: "You have already completed this quiz. Each quiz can only be attempted once.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Store current user and quiz info for the quiz session
+    localStorage.setItem("playerName", user.name);
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    localStorage.setItem("currentQuiz", JSON.stringify(quiz));
+    
+    navigate("/quiz");
+  };
+
+  // Show registration form if user is not registered
+  if (!user) {
+    return <UserRegistration onUserRegistered={handleUserRegistered} />;
+  }
 
   const features = [
     {
@@ -41,7 +125,7 @@ const HomePage = () => {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <img 
-            src={heroImage} 
+            src="@/assets/quiz-hero.jpg" 
             alt="Quiz Hero" 
             className="w-full h-full object-cover"
           />
@@ -52,50 +136,101 @@ const HomePage = () => {
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in-up">
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-glow">
-                Test Your
+                Welcome
               </span>
               <br />
-              <span className="text-foreground">Knowledge</span>
+              <span className="text-foreground">{user.name}!</span>
             </h1>
             
             <p className="text-xl text-muted-foreground mb-8 animate-fade-in-up [animation-delay:0.2s]">
-              Challenge yourself with our interactive quiz platform. 
-              Compete globally and prove your expertise across various topics.
+              {activeQuizzes.length > 0 
+                ? `${activeQuizzes.length} active quiz${activeQuizzes.length > 1 ? 'es' : ''} available! Test your knowledge and compete for the top spot!`
+                : "Waiting for the next quiz session to begin. Check back soon!"
+              }
             </p>
-
-            <div className="max-w-md mx-auto mb-8 animate-fade-in-up [animation-delay:0.4s]">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  className="bg-card border-border text-card-foreground"
-                  onKeyPress={(e) => e.key === "Enter" && startQuiz()}
-                />
-                <Button
-                  onClick={startQuiz}
-                  disabled={!playerName.trim()}
-                  className="btn-hero whitespace-nowrap"
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Start Quiz
-                </Button>
+            
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="text-center animate-fade-in-up [animation-delay:0.4s]">
+                <div className="inline-flex items-center px-6 py-3 bg-card/70 backdrop-blur-sm rounded-full border border-border/50">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-3"></div>
+                  <span className="text-muted-foreground">Loading available quizzes...</span>
+                </div>
               </div>
-            </div>
+            ) : activeQuizzes.length > 0 ? (
+              <div className="max-w-2xl mx-auto mb-8 space-y-4 animate-fade-in-up [animation-delay:0.4s]">
+                {activeQuizzes.map((quiz) => (
+                  <Card key={quiz.id} className="card-glass p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                          {userAttempts[quiz.id] && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                              <CheckCircle className="w-3 h-3" />
+                              Completed
+                            </div>
+                          )}
+                        </div>
+                        {quiz.description && (
+                          <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
+                        )}
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            <span>{quiz.questions.length} Questions</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{quiz.time_per_question}s per question</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => startQuiz(quiz)}
+                        disabled={userAttempts[quiz.id]}
+                        className="ml-4"
+                        variant={userAttempts[quiz.id] ? "secondary" : "default"}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        {userAttempts[quiz.id] ? "Completed" : "Start Quiz"}
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="max-w-md mx-auto text-center animate-fade-in-up [animation-delay:0.4s]">
+                <Card className="card-glass p-8">
+                  <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No Active Quizzes</h3>
+                  <p className="text-muted-foreground mb-4">
+                    There are no active quiz sessions at the moment. Check back soon or contact an admin to start a quiz!
+                  </p>
+                  <Button
+                    onClick={loadActiveQuizzes}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Clock className="w-4 h-4 mr-2" />
+                    Check Again
+                  </Button>
+                </Card>
+              </div>
+            )}
 
             <div className="flex justify-center gap-6 text-sm text-muted-foreground animate-fade-in-up [animation-delay:0.6s]">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                <span>8 Questions</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse [animation-delay:0.3s]" />
                 <span>Multiple Categories</span>
               </div>
               <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse [animation-delay:0.3s]" />
+                <span>Timed Questions</span>
+              </div>
+              <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.6s]" />
-                <span>Global Leaderboard</span>
+                <span>Live Leaderboard</span>
               </div>
             </div>
           </div>

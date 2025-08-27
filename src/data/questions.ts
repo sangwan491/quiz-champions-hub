@@ -8,15 +8,205 @@ export interface Question {
   points: number;
 }
 
+export interface Quiz {
+  id: string;
+  title: string;
+  description: string;
+  time_per_question: number; // in seconds
+  isActive: boolean;
+  createdAt: string;
+  questions: Question[];
+  sessionId?: string; // Added for active quizzes
+}
+
+export interface User {
+  id: string;
+  name: string;
+  linkedinProfile: string;
+  registeredAt: string;
+}
+
+export interface QuizSession {
+  id: string;
+  quizId: string;
+  isActive: boolean;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
 export interface QuizResult {
   id: string;
+  userId: string;
+  quizId: string;
   playerName: string;
   score: number;
   totalQuestions: number;
-  completedAt: Date;
+  completedAt: string;
   timeSpent: number; // in seconds
+  answers?: any[];
 }
 
+// API service functions
+const API_BASE = '/api';
+
+export const api = {
+  // Quiz management
+  getQuizzes: async (): Promise<Quiz[]> => {
+    const response = await fetch(`${API_BASE}/quizzes`);
+    return response.json();
+  },
+
+  createQuiz: async (quiz: Partial<Quiz>): Promise<Quiz> => {
+    const response = await fetch(`${API_BASE}/quizzes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(quiz),
+    });
+    return response.json();
+  },
+
+  updateQuiz: async (id: string, quiz: Partial<Quiz>): Promise<Quiz> => {
+    const response = await fetch(`${API_BASE}/quizzes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(quiz),
+    });
+    return response.json();
+  },
+
+  deleteQuiz: async (id: string): Promise<void> => {
+    await fetch(`${API_BASE}/quizzes/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Question management
+  addQuestion: async (quizId: string, question: Partial<Question>): Promise<Question> => {
+    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(question),
+    });
+    return response.json();
+  },
+
+  updateQuestion: async (quizId: string, questionId: string, question: Partial<Question>): Promise<Question> => {
+    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(question),
+    });
+    return response.json();
+  },
+
+  deleteQuestion: async (quizId: string, questionId: string): Promise<void> => {
+    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Session management
+  getSessions: async (): Promise<QuizSession[]> => {
+    const response = await fetch(`${API_BASE}/session`);
+    return response.json();
+  },
+
+  getActiveSessions: async (): Promise<QuizSession[]> => {
+    const response = await fetch(`${API_BASE}/sessions/active`);
+    return response.json();
+  },
+
+  startSession: async (quizId: string): Promise<QuizSession> => {
+    const response = await fetch(`${API_BASE}/session/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quizId }),
+    });
+    return response.json();
+  },
+
+  stopSession: async (quizId: string): Promise<QuizSession> => {
+    const response = await fetch(`${API_BASE}/session/stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quizId }),
+    });
+    return response.json();
+  },
+
+  stopAllSessions: async (): Promise<{ message: string; stoppedCount: number }> => {
+    const response = await fetch(`${API_BASE}/session/stop-all`, {
+      method: 'POST',
+    });
+    return response.json();
+  },
+
+  // User management
+  registerUser: async (user: { name: string; linkedinProfile?: string }): Promise<User> => {
+    const response = await fetch(`${API_BASE}/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user),
+    });
+    return response.json();
+  },
+
+  // Results
+  getResults: async (): Promise<QuizResult[]> => {
+    const response = await fetch(`${API_BASE}/results`);
+    return response.json();
+  },
+
+  getQuizResults: async (quizId: string): Promise<QuizResult[]> => {
+    const response = await fetch(`${API_BASE}/results/${quizId}`);
+    return response.json();
+  },
+
+  checkUserAttempt: async (userId: string, quizId: string): Promise<{ hasAttempted: boolean; attempt: QuizResult | null }> => {
+    const response = await fetch(`${API_BASE}/user/${userId}/attempts/${quizId}`);
+    return response.json();
+  },
+
+  submitResult: async (result: Partial<QuizResult>): Promise<QuizResult> => {
+    const response = await fetch(`${API_BASE}/results`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result),
+    });
+    return response.json();
+  },
+
+  resetLeaderboard: async (): Promise<void> => {
+    await fetch(`${API_BASE}/results`, {
+      method: 'DELETE',
+    });
+  },
+
+  resetQuizLeaderboard: async (quizId: string): Promise<void> => {
+    await fetch(`${API_BASE}/results/${quizId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get active quiz for players
+  getActiveQuizzes: async (): Promise<Quiz[]> => {
+    const response = await fetch(`${API_BASE}/quiz/active`);
+    if (!response.ok) {
+      throw new Error('No active quizzes');
+    }
+    return response.json();
+  },
+
+  getActiveQuiz: async (quizId: string): Promise<Quiz> => {
+    const response = await fetch(`${API_BASE}/quiz/active/${quizId}`);
+    if (!response.ok) {
+      throw new Error('No active quiz');
+    }
+    return response.json();
+  },
+};
+
+// Legacy exports for backward compatibility
 export const sampleQuestions: Question[] = [
   {
     id: "1",
@@ -35,102 +225,7 @@ export const sampleQuestions: Question[] = [
     category: "Technology",
     difficulty: "medium",
     points: 20
-  },
-  {
-    id: "3",
-    question: "What is the largest planet in our solar system?",
-    options: ["Earth", "Mars", "Jupiter", "Saturn"],
-    correctAnswer: 2,
-    category: "Science",
-    difficulty: "easy",
-    points: 10
-  },
-  {
-    id: "4",
-    question: "Who painted 'The Starry Night'?",
-    options: ["Pablo Picasso", "Vincent van Gogh", "Leonardo da Vinci", "Claude Monet"],
-    correctAnswer: 1,
-    category: "Art",
-    difficulty: "medium",
-    points: 20
-  },
-  {
-    id: "5",
-    question: "What is the time complexity of binary search?",
-    options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
-    correctAnswer: 1,
-    category: "Computer Science",
-    difficulty: "hard",
-    points: 30
-  },
-  {
-    id: "6",
-    question: "Which element has the chemical symbol 'Au'?",
-    options: ["Silver", "Gold", "Aluminum", "Argon"],
-    correctAnswer: 1,
-    category: "Science",
-    difficulty: "medium",
-    points: 20
-  },
-  {
-    id: "7",
-    question: "In which year did World War II end?",
-    options: ["1944", "1945", "1946", "1947"],
-    correctAnswer: 1,
-    category: "History",
-    difficulty: "easy",
-    points: 10
-  },
-  {
-    id: "8",
-    question: "What is the derivative of x²?",
-    options: ["x", "2x", "x²", "2"],
-    correctAnswer: 1,
-    category: "Mathematics",
-    difficulty: "medium",
-    points: 20
   }
 ];
 
-export const sampleLeaderboard: QuizResult[] = [
-  {
-    id: "1",
-    playerName: "Alice Wonder",
-    score: 180,
-    totalQuestions: 8,
-    completedAt: new Date("2024-01-15T10:30:00"),
-    timeSpent: 120
-  },
-  {
-    id: "2",
-    playerName: "Bob Smith",
-    score: 160,
-    totalQuestions: 8,
-    completedAt: new Date("2024-01-15T09:45:00"),
-    timeSpent: 95
-  },
-  {
-    id: "3",
-    playerName: "Charlie Brown",
-    score: 140,
-    totalQuestions: 8,
-    completedAt: new Date("2024-01-14T16:20:00"),
-    timeSpent: 110
-  },
-  {
-    id: "4",
-    playerName: "Diana Prince",
-    score: 130,
-    totalQuestions: 8,
-    completedAt: new Date("2024-01-14T14:15:00"),
-    timeSpent: 105
-  },
-  {
-    id: "5",
-    playerName: "Eve Adams",
-    score: 120,
-    totalQuestions: 8,
-    completedAt: new Date("2024-01-13T11:00:00"),
-    timeSpent: 130
-  }
-];
+export const sampleLeaderboard: QuizResult[] = [];

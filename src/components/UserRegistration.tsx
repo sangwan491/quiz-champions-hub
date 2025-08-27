@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
-import { UserPlus, Linkedin } from "lucide-react";
+import { UserPlus, Linkedin, Mail, Phone } from "lucide-react";
 
 interface UserRegistrationProps {
   onUserRegistered: (user: User) => void;
@@ -89,26 +89,32 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
 
           <div>
             <Label htmlFor="email">Email (optional)</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="mt-1"
-            />
+            <div className="relative mt-1">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="pl-10"
+              />
+            </div>
           </div>
 
           <div>
             <Label htmlFor="phone">Phone (optional)</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-              className="mt-1"
-            />
+            <div className="relative mt-1">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="pl-10"
+              />
+            </div>
           </div>
 
           <div>

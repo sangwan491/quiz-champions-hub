@@ -49,8 +49,8 @@ const Header = () => {
               </>
             )}
 
-            {/* Show Admin except on home route */}
-            {location.pathname !== '/' && (
+            {/* Show Admin except on home and leaderboard routes */}
+            {location.pathname !== '/' && location.pathname !== '/leaderboard' && (
               <Button
                 variant={isActive("/admin") ? "default" : "ghost"}
                 size="sm"

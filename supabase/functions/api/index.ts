@@ -22,7 +22,7 @@ const json = (body: unknown, init: ResponseInit = {}) =>
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+const anonKey = Deno.env.get("PROJECT_SECRET_KEY");
 const apiKey = serviceKey || anonKey || "";
 
 const restUrl = supabaseUrl ? `${supabaseUrl}/rest/v1` : "";

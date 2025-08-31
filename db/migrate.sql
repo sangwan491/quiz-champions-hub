@@ -1,6 +1,6 @@
 -- Insert existing users
-INSERT OR REPLACE INTO users (id, name, linkedin_profile, registered_at) VALUES 
-('bc5a51a9-8528-4c3a-80e2-d155008b483d', 'Harshit Taneja', 'https://www.linkedin.com/in/harshit-s-973041200/', '2025-08-21T10:08:25.094Z');
+INSERT OR REPLACE INTO users (id, name, phone, email, linkedin_profile, registered_at) VALUES 
+('bc5a51a9-8528-4c3a-80e2-d155008b483d', 'Harshit Taneja', '+911234567890', 'harshit.taneja@example.com', 'https://www.linkedin.com/in/harshit-s-973041200/', '2025-08-21T10:08:25.094Z');
 
 -- Insert existing quizzes
 INSERT OR REPLACE INTO quizzes (id, title, description, time_per_question, is_active, created_at) VALUES 

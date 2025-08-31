@@ -2,9 +2,16 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT,
     linkedin_profile TEXT,
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure unique constraints
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_unique ON users(phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_linkedin_unique ON users(linkedin_profile);
 
 -- Quizzes table
 CREATE TABLE IF NOT EXISTS quizzes (

@@ -51,11 +51,12 @@ const QuizPage = () => {
       try {
         const activeQuiz = await api.getActiveQuiz(quizData.id);
         setQuiz(activeQuiz);
-        setTimeLeft(activeQuiz.timePerQuestion);
+        const firstTime = activeQuiz.questions?.[0]?.time || 30;
+        setTimeLeft(firstTime);
       } catch (error) {
         toast({
           title: "Quiz Unavailable",
-          description: "This quiz session is no longer active.",
+          description: "This quiz is no longer active.",
           variant: "destructive"
         });
         navigate("/");
@@ -108,8 +109,8 @@ const QuizPage = () => {
         questionId: currentQuestion?.id,
         selectedAnswer: null,
         correct: false,
-        timeSpent: quiz.timePerQuestion,
-        points: 0
+        timeSpent: currentQuestion?.time || 30,
+        points: Math.min(0, currentQuestion?.points || 0) // no gain if timeout
       };
       setAnswers(newAnswers);
       setTimeout(nextQuestion, 2000);
@@ -123,9 +124,10 @@ const QuizPage = () => {
     setShowAnswer(true);
 
     const isCorrect = answerIndex === currentQuestion.correctAnswer;
-    const timeSpent = quiz.timePerQuestion - timeLeft;
-    const timeBonus = isCorrect ? Math.floor(timeLeft / 3) : 0;
-    const questionScore = isCorrect ? currentQuestion.points + timeBonus : 0;
+    const timeSpent = (currentQuestion.time || 30) - timeLeft;
+    const timeBonus = isCorrect && currentQuestion.points > 0 ? Math.floor(timeLeft / 3) : 0;
+    const basePoints = isCorrect ? currentQuestion.points : Math.min(0, currentQuestion.points * -1 > 0 ? -Math.abs(currentQuestion.points) : 0);
+    const questionScore = isCorrect ? basePoints + timeBonus : basePoints; // allow negative marking when wrong
 
     setScore(score + questionScore);
 
@@ -149,10 +151,11 @@ const QuizPage = () => {
     if (currentQuestionIndex + 1 >= quiz.questions.length) {
       completeQuiz();
     } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const nextIdx = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIdx);
       setSelectedAnswer(null);
       setShowAnswer(false);
-      setTimeLeft(quiz.timePerQuestion);
+      setTimeLeft(quiz.questions[nextIdx].time || 30);
     }
   };
 
@@ -169,7 +172,6 @@ const QuizPage = () => {
         score,
         totalQuestions: quiz.questions.length,
         timeSpent,
-        answers
       });
 
       // Store result for display on results page
@@ -299,7 +301,7 @@ const QuizPage = () => {
                   {currentQuestion.difficulty.toUpperCase()}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {currentQuestion.points} pts
+                  {currentQuestion.points} pts • {currentQuestion.time}s
                 </span>
               </div>
             </div>
@@ -346,9 +348,9 @@ const QuizPage = () => {
                   <div className="text-green-600 dark:text-green-400">
                     <CheckCircle className="w-8 h-8 mx-auto mb-2" />
                     <p className="font-semibold">
-                      Correct! +{currentQuestion.points + Math.floor(timeLeft / 3)} points
+                      Correct! +{currentQuestion.points + (currentQuestion.points > 0 ? Math.floor(timeLeft / 3) : 0)} points
                     </p>
-                    {timeLeft > 0 && (
+                    {timeLeft > 0 && currentQuestion.points > 0 && (
                       <p className="text-sm text-muted-foreground">
                         Including {Math.floor(timeLeft / 3)} bonus points for speed!
                       </p>
@@ -376,7 +378,7 @@ const QuizPage = () => {
 
         {/* Quiz Info Footer */}
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>Player: {user?.name} • Timer: {quiz.time_per_question}s per question</p>
+          <p>Player: {user?.name} • Avg Timer: {Math.round((quiz.totalTime || 0) / Math.max(quiz.questions.length || 1, 1))}s per question</p>
         </div>
       </div>
     </div>

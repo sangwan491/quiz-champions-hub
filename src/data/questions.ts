@@ -5,18 +5,20 @@ export interface Question {
   correctAnswer: number;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
-  points: number;
+  points: number; // can be positive (reward) or negative (penalty)
+  time: number; // per-question time in seconds
+  quizIds?: string[]; // question bank relationships
 }
 
 export interface Quiz {
   id: string;
   title: string;
   description: string;
-  time_per_question: number; // in seconds
-  isActive: boolean;
+  status: 'active' | 'inactive' | 'completed';
+  totalTime: number; // aggregate of question times
+  totalQuestions: number; // aggregate of attached questions
   createdAt: string;
   questions: Question[];
-  sessionId?: string; // Added for active quizzes
 }
 
 export interface User {
@@ -26,14 +28,7 @@ export interface User {
   email?: string;
   phone?: string;
   registeredAt: string;
-}
-
-export interface QuizSession {
-  id: string;
-  quizId: string;
-  isActive: boolean;
-  startedAt: string | null;
-  endedAt: string | null;
+  isPasswordSet?: boolean;
 }
 
 export interface QuizResult {
@@ -45,32 +40,110 @@ export interface QuizResult {
   totalQuestions: number;
   completedAt: string;
   timeSpent: number; // in seconds
-  answers?: any[];
 }
 
 // API service functions
 const API_BASE = 'https://tddkqotjksbqxzdtsygc.functions.supabase.co/api';
 
+// Auth token management
+let authToken: string | null = null;
+
+export const auth = {
+  setToken: (token: string) => {
+    authToken = token;
+    localStorage.setItem('authToken', token);
+  },
+  
+  getToken: (): string | null => {
+    if (!authToken) {
+      authToken = localStorage.getItem('authToken');
+    }
+    return authToken;
+  },
+  
+  clearToken: () => {
+    authToken = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+  },
+  
+  getHeaders: () => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = auth.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+};
+
 export const api = {
+  // Auth endpoints
+  registerUser: async (user: { name: string; linkedinProfile?: string; email?: string; phone: string }): Promise<User> => {
+    const response = await fetch(`${API_BASE}/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const message = err?.error || `Registration failed (${response.status})`;
+      throw new Error(message);
+    }
+    return response.json();
+  },
+
+  setPassword: async (userId: string, password: string): Promise<{ token: string; user: User }> => {
+    const response = await fetch(`${API_BASE}/users/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const message = err?.error || `Failed to set password (${response.status})`;
+      throw new Error(message);
+    }
+    const result = await response.json();
+    auth.setToken(result.token);
+    return result;
+  },
+
+  login: async (phone: string, password: string): Promise<{ token: string; user: User }> => {
+    const response = await fetch(`${API_BASE}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const message = err?.error || `Login failed (${response.status})`;
+      throw new Error(message);
+    }
+    const result = await response.json();
+    auth.setToken(result.token);
+    return result;
+  },
+
   // Quiz management
   getQuizzes: async (): Promise<Quiz[]> => {
     const response = await fetch(`${API_BASE}/quizzes`);
     return response.json();
   },
 
-  createQuiz: async (quiz: Partial<Quiz>): Promise<Quiz> => {
+  createQuiz: async (quiz: { title: string; description?: string; questionIds?: string[] }): Promise<Quiz> => {
     const response = await fetch(`${API_BASE}/quizzes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: auth.getHeaders(),
       body: JSON.stringify(quiz),
     });
     return response.json();
   },
 
-  updateQuiz: async (id: string, quiz: Partial<Quiz>): Promise<Quiz> => {
+  updateQuiz: async (id: string, quiz: Partial<Pick<Quiz, 'title' | 'description' | 'status'>>): Promise<Quiz> => {
     const response = await fetch(`${API_BASE}/quizzes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: auth.getHeaders(),
       body: JSON.stringify(quiz),
     });
     return response.json();
@@ -79,14 +152,53 @@ export const api = {
   deleteQuiz: async (id: string): Promise<void> => {
     await fetch(`${API_BASE}/quizzes/${id}`, {
       method: 'DELETE',
+      headers: auth.getHeaders(),
     });
   },
 
-  // Question management
+  // Question bank
+  getQuestionBank: async (): Promise<Question[]> => {
+    const response = await fetch(`${API_BASE}/questions`);
+    return response.json();
+  },
+
+  createQuestion: async (question: Partial<Question> & { quizIds?: string[] }): Promise<Question> => {
+    const response = await fetch(`${API_BASE}/questions`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+      body: JSON.stringify(question),
+    });
+    return response.json();
+  },
+
+  updateQuestionBank: async (questionId: string, question: Partial<Question> & { quizIds?: string[] }): Promise<Question> => {
+    const response = await fetch(`${API_BASE}/questions/${questionId}`, {
+      method: 'PUT',
+      headers: auth.getHeaders(),
+      body: JSON.stringify(question),
+    });
+    return response.json();
+  },
+
+  attachQuestionToQuiz: async (quizId: string, questionId: string): Promise<void> => {
+    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/attach`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+    });
+  },
+
+  detachQuestionFromQuiz: async (quizId: string, questionId: string): Promise<void> => {
+    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/detach`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+    });
+  },
+
+  // Question management for creating directly under a quiz
   addQuestion: async (quizId: string, question: Partial<Question>): Promise<Question> => {
     const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
     return response.json();
@@ -95,7 +207,7 @@ export const api = {
   updateQuestion: async (quizId: string, questionId: string, question: Partial<Question>): Promise<Question> => {
     const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
     return response.json();
@@ -104,53 +216,8 @@ export const api = {
   deleteQuestion: async (quizId: string, questionId: string): Promise<void> => {
     await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
       method: 'DELETE',
+      headers: auth.getHeaders(),
     });
-  },
-
-  // Session management
-  getSessions: async (): Promise<QuizSession[]> => {
-    const response = await fetch(`${API_BASE}/session`);
-    return response.json();
-  },
-
-  getActiveSessions: async (): Promise<QuizSession[]> => {
-    const response = await fetch(`${API_BASE}/sessions/active`);
-    return response.json();
-  },
-
-  startSession: async (quizId: string): Promise<QuizSession> => {
-    const response = await fetch(`${API_BASE}/session/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quizId }),
-    });
-    return response.json();
-  },
-
-  stopSession: async (quizId: string): Promise<QuizSession> => {
-    const response = await fetch(`${API_BASE}/session/stop`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quizId }),
-    });
-    return response.json();
-  },
-
-  stopAllSessions: async (): Promise<{ message: string; stoppedCount: number }> => {
-    const response = await fetch(`${API_BASE}/session/stop-all`, {
-      method: 'POST',
-    });
-    return response.json();
-  },
-
-  // User management
-  registerUser: async (user: { name: string; linkedinProfile?: string; email?: string; phone?: string }): Promise<User> => {
-    const response = await fetch(`${API_BASE}/users/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(user),
-    });
-    return response.json();
   },
 
   // Results
@@ -165,28 +232,38 @@ export const api = {
   },
 
   checkUserAttempt: async (userId: string, quizId: string): Promise<{ hasAttempted: boolean; attempt: QuizResult | null }> => {
-    const response = await fetch(`${API_BASE}/user/${userId}/attempts/${quizId}`);
+    const response = await fetch(`${API_BASE}/user/${userId}/attempts/${quizId}`, {
+      headers: auth.getHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to check user attempt');
+    }
     return response.json();
   },
 
-  submitResult: async (result: Partial<QuizResult>): Promise<QuizResult> => {
+  submitResult: async (result: { userId: string; quizId: string; score: number; totalQuestions: number; timeSpent: number }): Promise<QuizResult> => {
     const response = await fetch(`${API_BASE}/results`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: auth.getHeaders(),
       body: JSON.stringify(result),
     });
+    if (!response.ok) {
+      throw new Error('Failed to submit result');
+    }
     return response.json();
   },
 
   resetLeaderboard: async (): Promise<void> => {
     await fetch(`${API_BASE}/results`, {
       method: 'DELETE',
+      headers: auth.getHeaders(),
     });
   },
 
   resetQuizLeaderboard: async (quizId: string): Promise<void> => {
     await fetch(`${API_BASE}/results/${quizId}`, {
       method: 'DELETE',
+      headers: auth.getHeaders(),
     });
   },
 
@@ -217,7 +294,8 @@ export const sampleQuestions: Question[] = [
     correctAnswer: 0,
     category: "Geography",
     difficulty: "easy",
-    points: 10
+    points: 10,
+    time: 30,
   },
   {
     id: "2",
@@ -226,7 +304,8 @@ export const sampleQuestions: Question[] = [
     correctAnswer: 1,
     category: "Technology",
     difficulty: "medium",
-    points: 20
+    points: 20,
+    time: 30,
   }
 ];
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X, Play, Square, RotateCcw, Clock, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, RotateCcw, Clock, Users, ToggleLeft, ToggleRight, Link as LinkIcon, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,23 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { api, type Question, type Quiz, type QuizSession, type QuizResult } from "@/data/questions";
+import { api, type Question, type Quiz, type QuizResult } from "@/data/questions";
 
 const AdminPage = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [sessions, setSessions] = useState<QuizSession[]>([]);
   const [results, setResults] = useState<QuizResult[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [questionBank, setQuestionBank] = useState<Question[]>([]);
   const { toast } = useToast();
 
   const [quizFormData, setQuizFormData] = useState({
     title: "",
     description: "",
-    timePerQuestion: 30
   });
 
   const [questionFormData, setQuestionFormData] = useState({
@@ -33,7 +32,8 @@ const AdminPage = () => {
     correctAnswer: 0,
     category: "",
     difficulty: "easy" as "easy" | "medium" | "hard",
-    points: 10
+    points: 10,
+    time: 30,
   });
 
   useEffect(() => {
@@ -42,15 +42,15 @@ const AdminPage = () => {
 
   const loadData = async () => {
     try {
-      const [quizzesData, sessionsData, resultsData] = await Promise.all([
+      const [quizzesData, resultsData, bank] = await Promise.all([
         api.getQuizzes(),
-        api.getSessions(),
-        api.getResults()
+        api.getResults(),
+        api.getQuestionBank(),
       ]);
       
       setQuizzes(quizzesData);
-      setSessions(sessionsData);
       setResults(resultsData);
+      setQuestionBank(bank);
       
       // Select the first quiz by default
       if (quizzesData.length > 0) {
@@ -84,7 +84,7 @@ const AdminPage = () => {
       setQuizzes([...quizzes, newQuiz]);
       setSelectedQuiz(newQuiz);
       setIsAddingQuiz(false);
-      setQuizFormData({ title: "", description: "", timePerQuestion: 30 });
+      setQuizFormData({ title: "", description: "" });
       
       toast({
         title: "Success",
@@ -130,7 +130,8 @@ const AdminPage = () => {
       correctAnswer: 0,
       category: "",
       difficulty: "easy",
-      points: 10
+      points: 10,
+      time: 30,
     });
   };
 
@@ -147,7 +148,8 @@ const AdminPage = () => {
       correctAnswer: question.correctAnswer,
       category: question.category,
       difficulty: question.difficulty,
-      points: question.points
+      points: question.points,
+      time: question.time,
     });
     setEditingQuestion(question);
     setIsAddingQuestion(false);
@@ -245,107 +247,39 @@ const AdminPage = () => {
     }
   };
 
-  // Session Management
-  const startSession = async (quizId: string) => {
+  // Quiz Status Management
+  const setQuizStatus = async (status: Quiz["status"]) => {
+    if (!selectedQuiz) return;
     try {
-      const newSession = await api.startSession(quizId);
-      setSessions(prev => [...prev, newSession]);
-      
-      toast({
-        title: "Success",
-        description: "Quiz session started successfully"
-      });
-      
-      // Reload sessions to get updated state
-      const updatedSessions = await api.getSessions();
-      setSessions(updatedSessions);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to start quiz session",
-        variant: "destructive"
-      });
+      const updated = await api.updateQuiz(selectedQuiz.id, { status });
+      const updatedQuizzes = quizzes.map(q => q.id === updated.id ? updated : q);
+      setQuizzes(updatedQuizzes);
+      setSelectedQuiz(updated);
+      toast({ title: "Updated", description: `Quiz set to ${status}` });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     }
   };
 
-  const stopSession = async (quizId: string) => {
+  const attachToQuiz = async (questionId: string) => {
+    if (!selectedQuiz) return;
     try {
-      await api.stopSession(quizId);
-      
-      toast({
-        title: "Success",
-        description: "Quiz session stopped successfully"
-      });
-      
-      // Reload sessions to get updated state
-      const updatedSessions = await api.getSessions();
-      setSessions(updatedSessions);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to stop quiz session",
-        variant: "destructive"
-      });
+      await api.attachQuestionToQuiz(selectedQuiz.id, questionId);
+      await loadData();
+      toast({ title: "Attached", description: "Question added to quiz" });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to attach question", variant: "destructive" });
     }
   };
 
-  const stopAllSessions = async () => {
+  const detachFromQuiz = async (questionId: string) => {
+    if (!selectedQuiz) return;
     try {
-      await api.stopAllSessions();
-      
-      toast({
-        title: "Success",
-        description: "All quiz sessions stopped successfully"
-      });
-      
-      // Reload sessions to get updated state
-      const updatedSessions = await api.getSessions();
-      setSessions(updatedSessions);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to stop all quiz sessions",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Leaderboard Management
-  const resetLeaderboard = async () => {
-    try {
-      await api.resetLeaderboard();
-      setResults([]);
-      
-      toast({
-        title: "Success",
-        description: "Global leaderboard reset successfully"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reset global leaderboard",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const resetQuizLeaderboard = async (quizId: string) => {
-    try {
-      await api.resetQuizLeaderboard(quizId);
-      // Remove results for this specific quiz
-      setResults(prev => prev.filter(result => result.quizId !== quizId));
-      
-      const quiz = quizzes.find(q => q.id === quizId);
-      toast({
-        title: "Success",
-        description: `${quiz?.title || 'Quiz'} leaderboard reset successfully`
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reset quiz leaderboard",
-        variant: "destructive"
-      });
+      await api.detachQuestionFromQuiz(selectedQuiz.id, questionId);
+      await loadData();
+      toast({ title: "Detached", description: "Question removed from quiz" });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to detach question", variant: "destructive" });
     }
   };
 
@@ -386,30 +320,14 @@ const AdminPage = () => {
                 Admin Panel
               </span>
             </h1>
-            <p className="text-xl text-muted-foreground">Manage quizzes and sessions</p>
+            <p className="text-xl text-muted-foreground">Manage quizzes and questions</p>
           </div>
-          
-          {/* Session Status */}
-          <Card className="card-glass p-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${sessions.some(s => s.isActive) ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-              <span className="font-medium">
-                {sessions.some(s => s.isActive) ? 'Session Active' : 'No Active Session'}
-              </span>
-              {sessions.some(s => s.isActive) && (
-                <Button size="sm" variant="outline" onClick={() => stopAllSessions()}>
-                  <Square className="w-4 h-4 mr-1" />
-                  Stop All
-                </Button>
-              )}
-            </div>
-          </Card>
         </div>
 
         <Tabs defaultValue="quizzes" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="quizzes">Quiz Management</TabsTrigger>
-            <TabsTrigger value="sessions">Session Control</TabsTrigger>
+            <TabsTrigger value="status">Status & Publishing</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
 
@@ -473,18 +391,6 @@ const AdminPage = () => {
                     />
                   </div>
                   
-                  <div>
-                    <Label htmlFor="time-per-question">Time per Question (seconds)</Label>
-                    <Input
-                      id="time-per-question"
-                      type="number"
-                      min="10"
-                      max="300"
-                      value={quizFormData.timePerQuestion}
-                      onChange={(e) => setQuizFormData({ ...quizFormData, timePerQuestion: parseInt(e.target.value) || 30 })}
-                    />
-                  </div>
-                  
                   <div className="flex gap-2">
                     <Button onClick={handleCreateQuiz}>
                       <Save className="w-4 h-4 mr-2" />
@@ -510,12 +416,13 @@ const AdminPage = () => {
                     <div className="flex gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {selectedQuiz.questions.length} Questions
+                        {selectedQuiz.totalQuestions} Questions
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        {selectedQuiz.time_per_question}s per question
+                        {Math.round((selectedQuiz.totalTime || 0) / Math.max(selectedQuiz.totalQuestions || 1, 1))}s avg time
                       </span>
+                      <span className="px-3 py-1 rounded-full bg-muted/20 text-muted-foreground">Status: {selectedQuiz.status}</span>
                     </div>
                   </div>
                   
@@ -594,7 +501,7 @@ const AdminPage = () => {
                   </div>
 
                   {/* Category and Settings */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <Label htmlFor="category">Category</Label>
                       <Input
@@ -626,14 +533,25 @@ const AdminPage = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="points">Points</Label>
+                      <Label htmlFor="points">Points (allow negative for penalty)</Label>
                       <Input
                         id="points"
                         type="number"
-                        min="1"
-                        max="100"
                         value={questionFormData.points}
-                        onChange={(e) => setQuestionFormData({ ...questionFormData, points: parseInt(e.target.value) || 10 })}
+                        onChange={(e) => setQuestionFormData({ ...questionFormData, points: parseInt(e.target.value) || 0 })}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="time">Time (seconds)</Label>
+                      <Input
+                        id="time"
+                        type="number"
+                        min="5"
+                        max="600"
+                        value={questionFormData.time}
+                        onChange={(e) => setQuestionFormData({ ...questionFormData, time: parseInt(e.target.value) || 30 })}
                         className="mt-2"
                       />
                     </div>
@@ -657,7 +575,7 @@ const AdminPage = () => {
             {selectedQuiz && (
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold">
-                  Questions ({selectedQuiz.questions.length})
+                  Questions ({selectedQuiz.totalQuestions})
                 </h3>
                 
                 {selectedQuiz.questions.map((question, index) => (
@@ -672,7 +590,7 @@ const AdminPage = () => {
                             {question.difficulty.toUpperCase()}
                           </span>
                           <span className="text-sm text-muted-foreground">
-                            {question.points} points
+                            {question.points} points • {question.time}s
                           </span>
                         </div>
 
@@ -736,93 +654,66 @@ const AdminPage = () => {
               </div>
             )}
 
-            {!selectedQuiz && quizzes.length === 0 && (
-              <Card className="card-glass p-8 text-center">
-                <Plus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h4 className="text-xl font-semibold mb-2">No quizzes yet</h4>
-                <p className="text-muted-foreground mb-4">
-                  Create your first quiz to get started
-                </p>
-                <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero">
-                  Create First Quiz
-                </Button>
+            {/* Question Bank */}
+            {selectedQuiz && (
+              <Card className="card-glass p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Question Bank</h3>
+                </div>
+                <div className="grid gap-3">
+                  {questionBank.map((q) => {
+                    const attached = selectedQuiz.questions.some(sq => sq.id === q.id);
+                    return (
+                      <div key={q.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{q.question}</p>
+                          <p className="text-sm text-muted-foreground">{q.category} • {q.difficulty} • {q.time}s</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {attached ? (
+                            <Button size="sm" variant="outline" onClick={() => detachFromQuiz(q.id)}>
+                              <Unlink className="w-4 h-4 mr-1" /> Remove
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => attachToQuiz(q.id)}>
+                              <LinkIcon className="w-4 h-4 mr-1" /> Add
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </Card>
             )}
           </TabsContent>
 
-          {/* Session Control Tab */}
-          <TabsContent value="sessions" className="space-y-6">
-            <Card className="card-glass p-6">
-              <h3 className="text-xl font-semibold mb-4">Session Management</h3>
-              
-              <div className="space-y-4">
-                {/* Active Sessions Display */}
-                {sessions.filter(s => s.isActive).length > 0 ? (
-                  <div className="space-y-3">
-                    <Label>Active Sessions:</Label>
-                    {sessions.filter(s => s.isActive).map((session) => {
-                      const quiz = quizzes.find(q => q.id === session.quizId);
-                      return (
-                        <div key={session.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{quiz?.title || 'Unknown Quiz'}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Started: {new Date(session.startedAt || '').toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                            <Button 
-                              onClick={() => stopSession(session.quizId)} 
-                              variant="destructive" 
-                              size="sm"
-                            >
-                              <Square className="w-4 h-4 mr-1" />
-                              Stop
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <Button onClick={stopAllSessions} variant="destructive" className="w-full">
-                      <Square className="w-4 h-4 mr-2" />
-                      Stop All Sessions
+          {/* Status Control Tab */}
+          <TabsContent value="status" className="space-y-6">
+            {selectedQuiz ? (
+              <Card className="card-glass p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-semibold">{selectedQuiz.title}</h3>
+                    <p className="text-muted-foreground">Current status: {selectedQuiz.status}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant={selectedQuiz.status === 'active' ? 'default' : 'outline'} onClick={() => setQuizStatus('active')}>
+                      <ToggleRight className="w-4 h-4 mr-1" /> Active
+                    </Button>
+                    <Button variant={selectedQuiz.status === 'inactive' ? 'default' : 'outline'} onClick={() => setQuizStatus('inactive')}>
+                      <ToggleLeft className="w-4 h-4 mr-1" /> Inactive
+                    </Button>
+                    <Button variant={selectedQuiz.status === 'completed' ? 'default' : 'outline'} onClick={() => setQuizStatus('completed')}>
+                      <Clock className="w-4 h-4 mr-1" /> Completed
                     </Button>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Current Status</p>
-                      <p className="text-sm text-muted-foreground">No active sessions</p>
-                    </div>
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                  </div>
-                )}
-
-                {/* Start New Session */}
-                <div className="space-y-3">
-                  <Label>Start a quiz session:</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {quizzes.map((quiz) => {
-                      const hasActiveSession = sessions.some(s => s.quizId === quiz.id && s.isActive);
-                      return (
-                        <Button 
-                          key={quiz.id}
-                          onClick={() => startSession(quiz.id)}
-                          variant={hasActiveSession ? "secondary" : "outline"}
-                          className="flex items-center gap-2"
-                          disabled={hasActiveSession}
-                        >
-                          <Play className="w-4 h-4" />
-                          {quiz.title}
-                          {hasActiveSession && " (Active)"}
-                        </Button>
-                      );
-                    })}
-                  </div>
                 </div>
-              </div>
-            </Card>
+                <p className="text-sm text-muted-foreground">Use these controls to publish your quiz or mark it as completed. Players will only see quizzes marked as Active.</p>
+              </Card>
+            ) : (
+              <Card className="card-glass p-6 text-center">Select a quiz to manage its status.</Card>
+            )}
           </TabsContent>
 
           {/* Leaderboard Tab */}
@@ -831,7 +722,7 @@ const AdminPage = () => {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold">Leaderboard Management</h3>
                 <div className="flex gap-2">
-                  <Button onClick={resetLeaderboard} variant="destructive">
+                  <Button onClick={() => api.resetLeaderboard().then(() => toast({ title: 'Success', description: 'Global leaderboard reset successfully' })).catch(() => toast({ title:'Error', description: 'Failed to reset global leaderboard', variant: 'destructive' }))} variant="destructive">
                     <RotateCcw className="w-4 h-4 mr-2" />
                     Reset Global Leaderboard
                   </Button>
@@ -853,7 +744,7 @@ const AdminPage = () => {
                           </p>
                         </div>
                         <Button 
-                          onClick={() => resetQuizLeaderboard(quiz.id)} 
+                          onClick={() => api.resetQuizLeaderboard(quiz.id).then(() => toast({ title: 'Success', description: `${quiz.title} leaderboard reset successfully` })).catch(() => toast({ title: 'Error', description: 'Failed to reset quiz leaderboard', variant: 'destructive' }))} 
                           variant="outline" 
                           size="sm"
                           disabled={quizResults.length === 0}

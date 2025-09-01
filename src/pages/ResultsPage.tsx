@@ -20,8 +20,8 @@ const ResultsPage = () => {
 
   if (!result) return null;
 
-  const percentage = Math.round((result.score / (result.totalQuestions * 30)) * 100);
-  const accuracy = Math.round((result.score / result.totalQuestions / 30) * 100);
+  const percentage = Math.max(0, Math.min(100, Math.round((result.score / Math.max(result.totalQuestions, 1) / 30) * 100)));
+  const accuracy = Math.max(0, Math.min(100, Math.round((result.score / Math.max(result.totalQuestions * 30, 1)) * 100)));
 
   const getPerformanceMessage = () => {
     if (percentage >= 90) return { message: "Outstanding!", emoji: "🏆", color: "text-accent" };
@@ -95,11 +95,11 @@ const ResultsPage = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Average per Question</span>
-              <span className="font-semibold">{Math.round(result.score / result.totalQuestions)} points</span>
+              <span className="font-semibold">{Math.round(result.score / Math.max(result.totalQuestions, 1))} points</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Time per Question</span>
-              <span className="font-semibold">{Math.round(result.timeSpent / result.totalQuestions)}s</span>
+              <span className="font-semibold">{Math.round(result.timeSpent / Math.max(result.totalQuestions, 1))}s</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Completion Rate</span>

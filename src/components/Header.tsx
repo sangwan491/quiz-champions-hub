@@ -1,4 +1,4 @@
-import { Trophy, Settings, Home } from "lucide-react";
+import { Trophy, Settings, Home, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -7,6 +7,23 @@ const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  const handleLogout = () => {
+    // Clear local auth state
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    // Soft navigation by forcing reload so hooks re-evaluate user state
+    location.pathname !== '/' ? (window.location.href = '/') : window.location.reload();
+  };
+
+  const currentUser = (() => {
+    try {
+      const raw = localStorage.getItem('currentUser');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
@@ -62,6 +79,16 @@ const Header = () => {
                 </Link>
               </Button>
             )}
+
+            {/* Right-aligned auth */}
+            <div className="ml-4 flex items-center gap-2">
+              {currentUser && (
+                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              )}
+            </div>
           </nav>
         </div>
       </div>

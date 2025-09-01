@@ -10,7 +10,7 @@ const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState<QuizResult[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("all");
-  const [filter, setFilter] = useState<'all' | 'today' | 'week'>('all');
+  const [filter, setFilter] = useState<'all' | 'today' | 'week'>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
@@ -135,19 +135,9 @@ const LeaderboardPage = () => {
     });
   };
 
-  // Calculate accuracy percentage based on total possible points
+  // Accuracy proxy: score vs nominal max (30 points per question)
   const calculateAccuracy = (result: QuizResult) => {
-    if (!result.answers || result.answers.length === 0) {
-      // Fallback calculation if answers data isn't available
-      return Math.round((result.score / (result.totalQuestions * 30)) * 100);
-    }
-    
-    const totalPossiblePoints = result.answers.reduce((sum, answer) => {
-      return sum + (answer.points || 0);
-    }, 0);
-    
-    if (totalPossiblePoints === 0) return 0;
-    return Math.round((result.score / totalPossiblePoints) * 100);
+    return Math.round((result.score / Math.max(result.totalQuestions * 30, 1)) * 100);
   };
 
   if (isLoading) {

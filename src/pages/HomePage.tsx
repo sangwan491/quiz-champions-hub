@@ -4,7 +4,7 @@ import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { api, type Quiz, type User } from "@/data/questions";
+import { api, auth, type Quiz, type User } from "@/data/questions";
 import UserRegistration from "@/components/UserRegistration";
 
 const HomePage = () => {
@@ -16,15 +16,25 @@ const HomePage = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already registered
+    // Check if user is already registered and load auth token
     const savedUser = localStorage.getItem("currentUser");
-    if (savedUser) {
+    const savedToken = localStorage.getItem("authToken");
+    
+    if (savedUser && savedToken) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
+        // Validate minimal required fields and ensure password is set
+        if (parsedUser && typeof parsedUser.id === "string" && typeof parsedUser.name === "string" && parsedUser.name.trim() && parsedUser.phone) {
+          setUser(parsedUser);
+          // Set the auth token for API calls
+          auth.setToken(savedToken);
+        } else {
+          // Clear invalid user data
+          auth.clearToken();
+        }
       } catch (error) {
         console.error("Error parsing saved user:", error);
-        localStorage.removeItem("currentUser");
+        auth.clearToken();
       }
     }
   }, []);
@@ -178,11 +188,11 @@ const HomePage = () => {
                         <div className="flex gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Users className="w-4 h-4" />
-                            <span>{quiz.questions.length} Questions</span>
+                            <span>{quiz.totalQuestions} Questions</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            <span>{quiz.time_per_question}s per question</span>
+                            <span>{Math.round((quiz.totalTime || 0) / Math.max(quiz.totalQuestions || 1, 1))}s per question</span>
                           </div>
                         </div>
                       </div>

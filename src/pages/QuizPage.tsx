@@ -110,7 +110,7 @@ const QuizPage = () => {
         selectedAnswer: null,
         correct: false,
         timeSpent: currentQuestion?.time || 30,
-        points: Math.min(0, currentQuestion?.points || 0) // no gain if timeout
+        points: -(currentQuestion?.negativePoints || 0) // penalty for timeout
       };
       setAnswers(newAnswers);
       setTimeout(nextQuestion, 2000);
@@ -125,9 +125,9 @@ const QuizPage = () => {
 
     const isCorrect = answerIndex === currentQuestion.correctAnswer;
     const timeSpent = (currentQuestion.time || 30) - timeLeft;
-    const timeBonus = isCorrect && currentQuestion.points > 0 ? Math.floor(timeLeft / 3) : 0;
-    const basePoints = isCorrect ? currentQuestion.points : Math.min(0, currentQuestion.points * -1 > 0 ? -Math.abs(currentQuestion.points) : 0);
-    const questionScore = isCorrect ? basePoints + timeBonus : basePoints; // allow negative marking when wrong
+    const timeBonus = isCorrect && currentQuestion.positivePoints > 0 ? Math.floor(timeLeft / 3) : 0;
+    const basePoints = isCorrect ? currentQuestion.positivePoints : -(currentQuestion.negativePoints || 0);
+    const questionScore = isCorrect ? basePoints + timeBonus : basePoints;
 
     setScore(score + questionScore);
 
@@ -301,7 +301,7 @@ const QuizPage = () => {
                   {currentQuestion.difficulty.toUpperCase()}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {currentQuestion.points} pts • {currentQuestion.time}s
+                  +{currentQuestion.positivePoints} / -{currentQuestion.negativePoints} pts • {currentQuestion.time}s
                 </span>
               </div>
             </div>
@@ -348,9 +348,9 @@ const QuizPage = () => {
                   <div className="text-green-600 dark:text-green-400">
                     <CheckCircle className="w-8 h-8 mx-auto mb-2" />
                     <p className="font-semibold">
-                      Correct! +{currentQuestion.points + (currentQuestion.points > 0 ? Math.floor(timeLeft / 3) : 0)} points
+                      Correct! +{currentQuestion.positivePoints + (currentQuestion.positivePoints > 0 ? Math.floor(timeLeft / 3) : 0)} points
                     </p>
-                    {timeLeft > 0 && currentQuestion.points > 0 && (
+                    {timeLeft > 0 && currentQuestion.positivePoints > 0 && (
                       <p className="text-sm text-muted-foreground">
                         Including {Math.floor(timeLeft / 3)} bonus points for speed!
                       </p>

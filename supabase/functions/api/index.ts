@@ -144,8 +144,10 @@ function mapQuestion(q: any) {
     correctAnswer: q.correct_answer,
     category: q.category || "",
     difficulty: q.difficulty,
-    points: Number(q.points),
+    positivePoints: Number(q.positive_points || 10),
+    negativePoints: Number(q.negative_points || 0),
     time: Number(q.time),
+    quizIds: q.quiz_ids || [],
   };
 }
 
@@ -382,7 +384,8 @@ Deno.serve(async (req) => {
           correctAnswer: q.correct_answer,
           category: q.category || "",
           difficulty: q.difficulty,
-          points: Number(q.points),
+          positivePoints: Number(q.positive_points || 10),
+          negativePoints: Number(q.negative_points || 0),
           time: Number(q.time),
           quizIds: Array.isArray(q.quiz_ids) ? q.quiz_ids : [],
         }));
@@ -390,17 +393,18 @@ Deno.serve(async (req) => {
       }
       if (req.method === "POST") {
         const body = await parseJson<any>(req);
-        const newQ = {
-          id: crypto.randomUUID(),
-          question: body.question,
-          options: JSON.stringify(body.options || []),
-          correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || 'easy',
-          points: body.points ?? 10,
-          time: body.time ?? 30,
-          quiz_ids: Array.isArray(body.quizIds) ? body.quizIds : [],
-        };
+                 const newQ = {
+           id: crypto.randomUUID(),
+           question: body.question,
+           options: JSON.stringify(body.options || []),
+           correct_answer: body.correctAnswer,
+           category: body.category || null,
+           difficulty: body.difficulty || 'easy',
+           positive_points: body.positivePoints ?? 10,
+           negative_points: body.negativePoints ?? 0,
+           time: body.time ?? 30,
+           quiz_ids: Array.isArray(body.quizIds) ? body.quizIds : [],
+         };
         await rest(`/questions`, { method: "POST", body: JSON.stringify(newQ) });
         // Recalculate stats for any affected quizzes
         for (const qid of newQ.quiz_ids) {
@@ -420,10 +424,11 @@ Deno.serve(async (req) => {
         if (body.question !== undefined) updates.question = body.question;
         if (body.options !== undefined) updates.options = JSON.stringify(body.options);
         if (body.correctAnswer !== undefined) updates.correct_answer = body.correctAnswer;
-        if (body.category !== undefined) updates.category = body.category;
-        if (body.difficulty !== undefined) updates.difficulty = body.difficulty;
-        if (body.points !== undefined) updates.points = body.points;
-        if (body.time !== undefined) updates.time = body.time;
+                 if (body.category !== undefined) updates.category = body.category;
+         if (body.difficulty !== undefined) updates.difficulty = body.difficulty;
+         if (body.positivePoints !== undefined) updates.positive_points = body.positivePoints;
+         if (body.negativePoints !== undefined) updates.negative_points = body.negativePoints;
+         if (body.time !== undefined) updates.time = body.time;
         if (body.quizIds !== undefined) updates.quiz_ids = body.quizIds;
         await rest(`/questions?id=eq.${qid}`, { method: "PATCH", body: JSON.stringify(updates) });
         // Recalc for affected quizzes
@@ -560,17 +565,18 @@ Deno.serve(async (req) => {
       const quizId = questionsCreateMatch[1];
       if (req.method === "POST") {
         const body = await parseJson<any>(req);
-        const newQuestion = {
-          id: crypto.randomUUID(),
-          question: body.question,
-          options: JSON.stringify(body.options || []),
-          correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || 'easy',
-          points: body.points ?? 10,
-          time: body.time ?? 30,
-          quiz_ids: [quizId],
-        };
+                  const newQuestion = {
+            id: crypto.randomUUID(),
+            question: body.question,
+            options: JSON.stringify(body.options || []),
+            correct_answer: body.correctAnswer,
+            category: body.category || null,
+            difficulty: body.difficulty || 'easy',
+            positive_points: body.positivePoints ?? 10,
+            negative_points: body.negativePoints ?? 0,
+            time: body.time ?? 30,
+            quiz_ids: [quizId],
+          };
         await rest(`/questions`, { method: "POST", body: JSON.stringify(newQuestion) });
         await rest(`/rpc/recalculate_quiz_stats`, { method: "POST", body: JSON.stringify({ p_quiz_id: quizId }) });
         return json({ id: newQuestion.id, ...body }, { status: 201 });
@@ -586,9 +592,11 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(body)) {
           if (key === "options") updates.options = JSON.stringify(value);
-          else if (key === "correctAnswer") updates.correct_answer = value;
-          else if (key === "time") updates.time = value as unknown;
-          else updates[key] = value as unknown;
+                     else if (key === "correctAnswer") updates.correct_answer = value;
+           else if (key === "positivePoints") updates.positive_points = value;
+           else if (key === "negativePoints") updates.negative_points = value;
+           else if (key === "time") updates.time = value as unknown;
+           else updates[key] = value as unknown;
         }
         await rest(`/questions?id=eq.${questionId}`, { method: "PATCH", body: JSON.stringify(updates) });
         return json({ id: questionId, ...body });

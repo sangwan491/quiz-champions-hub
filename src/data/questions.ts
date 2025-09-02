@@ -5,7 +5,8 @@ export interface Question {
   correctAnswer: number;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
-  points: number; // can be positive (reward) or negative (penalty)
+  positivePoints: number; // points awarded for correct answer
+  negativePoints: number; // points deducted for incorrect answer
   time: number; // per-question time in seconds
   quizIds?: string[]; // question bank relationships
 }
@@ -294,7 +295,8 @@ export const sampleQuestions: Question[] = [
     correctAnswer: 0,
     category: "Geography",
     difficulty: "easy",
-    points: 10,
+    positivePoints: 10,
+    negativePoints: 2,
     time: 30,
   },
   {
@@ -304,7 +306,8 @@ export const sampleQuestions: Question[] = [
     correctAnswer: 1,
     category: "Technology",
     difficulty: "medium",
-    points: 20,
+    positivePoints: 20,
+    negativePoints: 5,
     time: 30,
   }
 ];

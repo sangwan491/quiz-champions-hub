@@ -32,7 +32,8 @@ const AdminPage = () => {
     correctAnswer: 0,
     category: "",
     difficulty: "easy" as "easy" | "medium" | "hard",
-    points: 10,
+    positivePoints: 10,
+    negativePoints: 2,
     time: 30,
   });
 
@@ -130,7 +131,8 @@ const AdminPage = () => {
       correctAnswer: 0,
       category: "",
       difficulty: "easy",
-      points: 10,
+      positivePoints: 10,
+      negativePoints: 2,
       time: 30,
     });
   };
@@ -148,7 +150,8 @@ const AdminPage = () => {
       correctAnswer: question.correctAnswer,
       category: question.category,
       difficulty: question.difficulty,
-      points: question.points,
+      positivePoints: question.positivePoints,
+      negativePoints: question.negativePoints,
       time: question.time,
     });
     setEditingQuestion(question);
@@ -501,7 +504,7 @@ const AdminPage = () => {
                   </div>
 
                   {/* Category and Settings */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                       <Label htmlFor="category">Category</Label>
                       <Input
@@ -533,12 +536,25 @@ const AdminPage = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="points">Points (allow negative for penalty)</Label>
+                      <Label htmlFor="positivePoints">Positive Points</Label>
                       <Input
-                        id="points"
+                        id="positivePoints"
                         type="number"
-                        value={questionFormData.points}
-                        onChange={(e) => setQuestionFormData({ ...questionFormData, points: parseInt(e.target.value) || 0 })}
+                        min="1"
+                        value={questionFormData.positivePoints}
+                        onChange={(e) => setQuestionFormData({ ...questionFormData, positivePoints: parseInt(e.target.value) || 10 })}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="negativePoints">Negative Points</Label>
+                      <Input
+                        id="negativePoints"
+                        type="number"
+                        min="0"
+                        value={questionFormData.negativePoints}
+                        onChange={(e) => setQuestionFormData({ ...questionFormData, negativePoints: parseInt(e.target.value) || 0 })}
                         className="mt-2"
                       />
                     </div>
@@ -590,7 +606,7 @@ const AdminPage = () => {
                             {question.difficulty.toUpperCase()}
                           </span>
                           <span className="text-sm text-muted-foreground">
-                            {question.points} points • {question.time}s
+                            +{question.positivePoints} / -{question.negativePoints} pts • {question.time}s
                           </span>
                         </div>
 

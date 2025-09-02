@@ -81,14 +81,12 @@ const Header = () => {
             )}
 
             {/* Right-aligned auth */}
-            <div className="ml-4 flex items-center gap-2">
-              {currentUser && (
-                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </Button>
-              )}
-            </div>
+            {currentUser && (
+              <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2 ml-4">
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            )}
           </nav>
         </div>
       </div>

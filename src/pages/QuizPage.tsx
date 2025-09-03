@@ -79,6 +79,20 @@ const QuizPage = () => {
         console.error('Error checking user attempt:', error);
       }
 
+      // Start quiz session on server for timing validation
+      try {
+        await api.startQuiz(quizData.id);
+      } catch (error) {
+        console.error('Error starting quiz session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start quiz session. Please try again.",
+          variant: "destructive"
+        });
+        navigate("/");
+        return;
+      }
+
     } catch (error) {
       console.error('Error initializing quiz:', error);
       toast({
@@ -163,7 +177,6 @@ const QuizPage = () => {
     if (!user || !quiz || quizEnded) return;
 
     setQuizEnded(true);
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     
     try {
       await api.submitResult({
@@ -171,7 +184,6 @@ const QuizPage = () => {
         quizId: quiz.id,
         score,
         totalQuestions: quiz.questions.length,
-        timeSpent,
       });
 
       // Store result for display on results page
@@ -179,7 +191,7 @@ const QuizPage = () => {
         playerName: user.name,
         score,
         totalQuestions: quiz.questions.length,
-        timeSpent,
+        timeSpent: 0, // Server will calculate actual time
         completedAt: new Date().toISOString()
       };
       localStorage.setItem("lastQuizResult", JSON.stringify(result));
@@ -201,24 +213,12 @@ const QuizPage = () => {
   };
 
   const getAnswerClass = (index: number) => {
-    if (!showAnswer) return "btn-answer";
-    
-    if (index === currentQuestion?.correctAnswer) {
-      return "btn-answer correct";
-    } else if (index === selectedAnswer && index !== currentQuestion?.correctAnswer) {
-      return "btn-answer incorrect";
-    }
+    // Hide correct/incorrect indicators
     return "btn-answer";
   };
 
   const getAnswerIcon = (index: number) => {
-    if (!showAnswer) return null;
-    
-    if (index === currentQuestion?.correctAnswer) {
-      return <CheckCircle className="w-5 h-5" />;
-    } else if (index === selectedAnswer && index !== currentQuestion?.correctAnswer) {
-      return <XCircle className="w-5 h-5" />;
-    }
+    // Hide any icon feedback
     return null;
   };
 
@@ -344,33 +344,10 @@ const QuizPage = () => {
             {/* Answer Feedback */}
             {showAnswer && (
               <div className="text-center animate-fade-in-up">
-                {selectedAnswer === currentQuestion.correctAnswer ? (
-                  <div className="text-green-600 dark:text-green-400">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2" />
-                    <p className="font-semibold">
-                      Correct! +{currentQuestion.positivePoints + (currentQuestion.positivePoints > 0 ? Math.floor(timeLeft / 3) : 0)} points
-                    </p>
-                    {timeLeft > 0 && currentQuestion.positivePoints > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        Including {Math.floor(timeLeft / 3)} bonus points for speed!
-                      </p>
-                    )}
-                  </div>
-                ) : selectedAnswer !== null ? (
-                  <div className="text-red-600 dark:text-red-400">
-                    <XCircle className="w-8 h-8 mx-auto mb-2" />
-                    <p className="font-semibold">
-                      Incorrect. The correct answer was: {currentQuestion.options[currentQuestion.correctAnswer]}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-yellow-600 dark:text-yellow-400">
-                    <Clock className="w-8 h-8 mx-auto mb-2" />
-                    <p className="font-semibold">
-                      Time's up! The correct answer was: {currentQuestion.options[currentQuestion.correctAnswer]}
-                    </p>
-                  </div>
-                )}
+                {/* Hide explicit correct/incorrect and correct answer text */}
+                <div className="text-muted-foreground">
+                  <p className="font-medium">Answer recorded. Moving to the next question...</p>
+                </div>
               </div>
             )}
           </div>

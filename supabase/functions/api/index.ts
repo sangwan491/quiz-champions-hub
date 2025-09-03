@@ -20,15 +20,18 @@ const json = (body: unknown, init: ResponseInit = {}) =>
     status: init.status || 200,
   });
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const anonKey = Deno.env.get("PROJECT_SECRET_KEY");
+// Access env safely (Deno provided at runtime)
+// deno-lint-ignore no-explicit-any
+const getenv = (key: string): string | undefined => (globalThis as any).Deno?.env?.get?.(key);
+const supabaseUrl = getenv("SUPABASE_URL");
+const serviceKey = getenv("SUPABASE_SERVICE_ROLE_KEY");
+const anonKey = getenv("PROJECT_SECRET_KEY");
 const apiKey = serviceKey || anonKey || "";
 
 const restUrl = supabaseUrl ? `${supabaseUrl}/rest/v1` : "";
 
 // JWT secret for token generation
-const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-jwt-secret-key-change-in-production";
+const JWT_SECRET = getenv("JWT_SECRET") || "your-jwt-secret-key-change-in-production";
 
 // Crypto utilities
 async function hashPassword(password: string): Promise<string> {
@@ -184,6 +187,117 @@ Deno.serve(async (req) => {
       return json({ status: "ok" });
     }
 
+    // Admin: whoami
+    if (path === "/api/admin/me" && req.method === "GET") {
+      const auth = await authenticateRequest(req);
+      if (!auth) return json({ error: "Authentication required" }, { status: 401 });
+      const user = await rest(`/users?select=*&id=eq.${auth.userId}`);
+      const u = user?.[0];
+      if (!u) return json({ error: "User not found" }, { status: 404 });
+      const adminEmail = (getenv("ADMIN_EMAIL") || "admin@quiz.local").toLowerCase();
+      const adminPhone = getenv("ADMIN_PHONE") || "+10000000000";
+      const isAdmin = !!u.is_admin || (u.email && u.email.toLowerCase() === adminEmail) || (u.phone && u.phone === adminPhone);
+      return json({
+        isAdmin,
+        user: {
+          id: u.id,
+          name: u.name,
+          linkedinProfile: u.linkedin_profile || "",
+          email: u.email || undefined,
+          phone: u.phone || undefined,
+          registeredAt: u.registered_at,
+        },
+      });
+    }
+
+    // Admin: seed a default admin (idempotent)
+    if (path === "/api/admin/seed" && req.method === "POST") {
+      // Optional basic protection via header token
+      const seedToken = req.headers.get("x-seed-token");
+      const allowed = Deno.env.get("ADMIN_SEED_TOKEN");
+      if (allowed && seedToken !== allowed) {
+        return json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const body = await parseJson<any>(req);
+      const name = (body.name || "Administrator").toString();
+      const email = (body.email || getenv("ADMIN_EMAIL") || "admin@quiz.local").toString().toLowerCase();
+      const phone = (body.phone || getenv("ADMIN_PHONE") || "+10000000000").toString();
+      const password = (body.password || getenv("ADMIN_PASSWORD") || "Admin@12345").toString();
+
+      // If an admin already exists (by email or phone), return it
+      const matches = await rest(`/users?select=*&or=(email.eq.${encodeURIComponent(email)},phone.eq.${encodeURIComponent(phone)})&order=registered_at.asc`);
+      const existing = matches?.[0];
+      if (existing) {
+        const token = generateJWT(existing.id);
+        try {
+          await rest(`/auth_sessions`, { method: "POST", body: JSON.stringify({
+            id: crypto.randomUUID(),
+            user_id: existing.id,
+            token_hash: await hashPassword(token),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          }) });
+        } catch {}
+        return json({
+          message: "Admin already exists",
+          admin: {
+            id: existing.id,
+            name: existing.name,
+            email: existing.email || undefined,
+            phone: existing.phone || undefined,
+            isAdmin: true,
+            token,
+          },
+        }, { status: 200 });
+      }
+
+      const id = crypto.randomUUID();
+      const passwordHash = await hashPassword(password);
+      const user = {
+        id,
+        name,
+        linkedin_profile: null, // Always null for admin to avoid unique constraint issues
+        email,
+        phone,
+        password_hash: passwordHash,
+        is_password_set: true,
+        registered_at: new Date().toISOString(),
+      } as Record<string, unknown>;
+      try {
+        // Try to mark admin if column exists
+        user["is_admin"] = true;
+        await rest(`/users`, { method: "POST", body: JSON.stringify(user) });
+      } catch (e) {
+        // Fallback without is_admin
+        delete user["is_admin"];
+        await rest(`/users`, { method: "POST", body: JSON.stringify(user) });
+      }
+
+      // Issue a token for convenience
+      const token = generateJWT(id);
+      try {
+        await rest(`/auth_sessions`, { method: "POST", body: JSON.stringify({
+          id: crypto.randomUUID(),
+          user_id: id,
+          token_hash: await hashPassword(token),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        }) });
+      } catch {}
+
+      return json({
+        message: "Admin created",
+        admin: {
+          id,
+          name,
+          email,
+          phone,
+          isAdmin: true,
+          token,
+          password,
+        },
+      }, { status: 201 });
+    }
+
     // Users register - only create new users, return 409 if exists
     if (path === "/api/users/register" && req.method === "POST") {
       const body = await parseJson<any>(req);
@@ -220,8 +334,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check LinkedIn uniqueness
-      if (linkedinProfile) {
+      // Check LinkedIn uniqueness (only if not empty)
+      if (linkedinProfile && linkedinProfile.trim()) {
         const byLinkedin = await rest(`/users?select=*&linkedin_profile=eq.${encodeURIComponent(linkedinProfile)}`);
         if (byLinkedin?.[0]) {
           return json({ error: "LinkedIn profile already registered" }, { status: 409 });
@@ -232,7 +346,7 @@ Deno.serve(async (req) => {
       const user = {
         id: crypto.randomUUID(),
         name,
-        linkedin_profile: linkedinProfile || "",
+        linkedin_profile: (linkedinProfile && linkedinProfile.trim()) ? linkedinProfile.trim() : null,
         email: email || null,
         phone: phoneDigits,
         password_hash: null,
@@ -249,7 +363,7 @@ Deno.serve(async (req) => {
       return json({ 
         id: user.id, 
         name: user.name, 
-        linkedinProfile: user.linkedin_profile, 
+        linkedinProfile: user.linkedin_profile || "", 
         email: user.email || undefined, 
         phone: user.phone || undefined, 
         registeredAt: user.registered_at,
@@ -615,6 +729,75 @@ Deno.serve(async (req) => {
       return json({ error: `Method ${req.method} Not Allowed` }, { status: 405 });
     }
 
+    // Active quizzes list (based on quizzes.status)
+    if (path === "/api/quiz/active" && req.method === "GET") {
+      const activeQuizzes = await rest(`/quizzes?select=*&status=eq.active`);
+      if (!activeQuizzes?.length) return json({ error: "No active quiz" }, { status: 404 });
+      const mapped: any[] = [];
+      for (const quiz of activeQuizzes) {
+        const questions = await fetchQuestionsForQuiz(quiz.id);
+        mapped.push(mapQuiz(quiz, questions));
+      }
+      return json(mapped);
+    }
+
+    // Active quiz by id
+    const activeById = path.match(/^\/api\/quiz\/active\/([^\/]+)$/);
+    if (activeById && req.method === "GET") {
+      const quizId = activeById[1];
+      const quizList = await rest(`/quizzes?id=eq.${quizId}&status=eq.active&select=*`);
+      if (!quizList?.[0]) return json({ error: "No active session for this quiz" }, { status: 404 });
+      const quiz = quizList[0];
+      const questions = await fetchQuestionsForQuiz(quizId);
+      const full = mapQuiz(quiz, questions);
+      return json(full);
+    }
+
+    // Quiz session start - creates server-side timing record
+    const startSession = path.match(/^\/api\/quiz\/([^\/]+)\/start$/);
+    if (startSession && req.method === "POST") {
+      const quizId = startSession[1];
+      const auth = await authenticateRequest(req);
+      if (!auth) return json({ error: "Authentication required" }, { status: 401 });
+
+      // Verify quiz exists and is active
+      const quiz = await fetchQuizRaw(quizId);
+      if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
+      if (quiz.status !== 'active') return json({ error: "Quiz is not active" }, { status: 400 });
+
+      // Check if user already completed this quiz
+      const existingResult = await rest(`/results?user_id=eq.${auth.userId}&quiz_id=eq.${quizId}`);
+      if (existingResult?.[0]) return json({ error: "User has already completed this quiz" }, { status: 400 });
+
+      // Check for existing active session
+      const existingSession = await rest(`/quiz_sessions?user_id=eq.${auth.userId}&quiz_id=eq.${quizId}&is_active=eq.true`);
+      if (existingSession?.[0]) {
+        // Return existing session
+        return json({
+          sessionId: existingSession[0].id,
+          startedAt: existingSession[0].started_at,
+          message: "Session already active"
+        });
+      }
+
+      // Create new session
+      const session = {
+        id: crypto.randomUUID(),
+        user_id: auth.userId,
+        quiz_id: quizId,
+        started_at: new Date().toISOString(),
+        is_active: true
+      };
+      
+      await rest(`/quiz_sessions`, { method: "POST", body: JSON.stringify(session) });
+      
+      return json({
+        sessionId: session.id,
+        startedAt: session.started_at,
+        message: "Quiz session started"
+      }, { status: 201 });
+    }
+
     // Results list/create/reset
     if (path === "/api/results") {
       if (req.method === "GET") {
@@ -657,18 +840,83 @@ Deno.serve(async (req) => {
         if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
         if (quiz.status !== 'active') return json({ error: "Quiz is not active" }, { status: 400 });
 
+        // Check for existing result
         const existingAttempt = await rest(`/results?user_id=eq.${body.userId}&quiz_id=eq.${body.quizId}`);
         if (existingAttempt?.[0]) return json({ error: "User has already attempted this quiz" }, { status: 400 });
 
+        // Server-side time validation: find active session
+        const sessions = await rest(`/quiz_sessions?user_id=eq.${body.userId}&quiz_id=eq.${body.quizId}&is_active=eq.true&order=started_at.desc`);
+        const session = sessions?.[0];
+        if (!session) {
+          // Fallback: allow submission without session for now (will be enforced once migration is complete)
+          console.warn("No quiz session found, allowing submission with fallback validation");
+          const result = {
+            id: crypto.randomUUID(),
+            user_id: body.userId,
+            quiz_id: body.quizId,
+            score: body.score,
+            time_spent: 0, // Unknown time without session
+            completed_at: new Date().toISOString(),
+          };
+          await rest(`/results`, { method: "POST", body: JSON.stringify(result) });
+          
+          return json({
+            id: result.id,
+            userId: result.user_id,
+            quizId: result.quiz_id,
+            playerName: user.name,
+            score: result.score,
+            totalQuestions: Number(quiz.total_questions ?? 0),
+            timeSpent: result.time_spent,
+            completedAt: result.completed_at,
+            warning: "Time validation disabled - quiz_sessions table not available"
+          }, { status: 201 });
+        }
+
+        // Calculate server-side elapsed time
+        const startTime = new Date(session.started_at);
+        const currentTime = new Date();
+        const elapsedSeconds = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+
+        // Get quiz time limit
+        let maxTime = Number(quiz.total_time || 0);
+        if (!maxTime || maxTime <= 0) {
+          try {
+            const qs = await fetchQuestionsForQuiz(body.quizId);
+            maxTime = (qs || []).reduce((sum: number, q: any) => sum + Number(q.time || 0), 0);
+          } catch {
+            maxTime = 0;
+          }
+        }
+
+        // Validate time limit with 5 second grace period
+        if (maxTime > 0 && elapsedSeconds > maxTime + 5) {
+          return json({ 
+            error: "Time limit exceeded", 
+            details: `Elapsed: ${elapsedSeconds}s, Limit: ${maxTime}s (+ 5s grace)` 
+          }, { status: 400 });
+        }
+
+        // Close the session
+        await rest(`/quiz_sessions?id=eq.${session.id}`, { 
+          method: "PATCH", 
+          body: JSON.stringify({ 
+            is_active: false, 
+            completed_at: currentTime.toISOString() 
+          }) 
+        });
+
+        // Create result with server-calculated time
         const result = {
           id: crypto.randomUUID(),
           user_id: body.userId,
           quiz_id: body.quizId,
           score: body.score,
-          time_spent: body.timeSpent,
-          completed_at: new Date().toISOString(),
+          time_spent: elapsedSeconds,
+          completed_at: currentTime.toISOString(),
         };
         await rest(`/results`, { method: "POST", body: JSON.stringify(result) });
+        
         return json({
           id: result.id,
           userId: result.user_id,
@@ -732,30 +980,6 @@ Deno.serve(async (req) => {
       const attempt = await rest(`/results?select=*&user_id=eq.${userId}&quiz_id=eq.${quizId}`);
       const item = attempt?.[0] || null;
       return json({ hasAttempted: !!item, attempt: item });
-    }
-
-    // Active quizzes list (based on quizzes.status)
-    if (path === "/api/quiz/active" && req.method === "GET") {
-      const activeQuizzes = await rest(`/quizzes?select=*&status=eq.active`);
-      if (!activeQuizzes?.length) return json({ error: "No active quiz" }, { status: 404 });
-      const mapped: any[] = [];
-      for (const quiz of activeQuizzes) {
-        const questions = await fetchQuestionsForQuiz(quiz.id);
-        mapped.push(mapQuiz(quiz, questions));
-      }
-      return json(mapped);
-    }
-
-    // Active quiz by id
-    const activeById = path.match(/^\/api\/quiz\/active\/([^\/]+)$/);
-    if (activeById && req.method === "GET") {
-      const quizId = activeById[1];
-      const quizList = await rest(`/quizzes?id=eq.${quizId}&status=eq.active&select=*`);
-      if (!quizList?.[0]) return json({ error: "No active session for this quiz" }, { status: 404 });
-      const quiz = quizList[0];
-      const questions = await fetchQuestionsForQuiz(quizId);
-      const full = mapQuiz(quiz, questions);
-      return json(full);
     }
 
     return json({ error: "Not found" }, { status: 404 });

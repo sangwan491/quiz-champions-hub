@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { api, type Question, type Quiz, type QuizResult } from "@/data/questions";
+import { api, auth, type Question, type Quiz, type QuizResult } from "@/data/questions";
+import { useNavigate } from "react-router-dom";
 
 const AdminPage = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -20,6 +21,8 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [questionBank, setQuestionBank] = useState<Question[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const [quizFormData, setQuizFormData] = useState({
     title: "",
@@ -38,8 +41,39 @@ const AdminPage = () => {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    // verify admin via backend
+    (async () => {
+      try {
+        // Check if user has a valid token first
+        const token = auth.getToken();
+        if (!token) {
+          toast({ title: "Login Required", description: "Please login first to access admin panel.", variant: "destructive" });
+          navigate("/");
+          return;
+        }
+
+        const status = await api.getAdminStatus();
+        if (!status?.isAdmin) {
+          toast({ title: "Unauthorized", description: "Admin access required. Contact administrator.", variant: "destructive" });
+          navigate("/");
+          return;
+        }
+        setIsAdmin(true);
+      } catch (error: any) {
+        console.error('Admin check failed:', error);
+        if (error.message?.includes('401') || error.message?.includes('Authentication')) {
+          toast({ title: "Login Required", description: "Please login first to access admin panel.", variant: "destructive" });
+        } else {
+          toast({ title: "Access Error", description: "Failed to verify admin access. Please try again.", variant: "destructive" });
+        }
+        navigate("/");
+      }
+    })();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (isAdmin) loadData();
+  }, [isAdmin]);
 
   const loadData = async () => {
     try {

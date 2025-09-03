@@ -126,6 +126,26 @@ export const api = {
     return result;
   },
 
+  // Admin endpoints
+  getAdminStatus: async (): Promise<{ isAdmin: boolean; user?: User }> => {
+    const response = await fetch(`${API_BASE}/admin/me`, {
+      headers: auth.getHeaders(),
+    });
+    if (!response.ok) {
+      return { isAdmin: false };
+    }
+    return response.json();
+  },
+
+  seedAdmin: async (payload?: { name?: string; email?: string; phone?: string; password?: string }): Promise<any> => {
+    const response = await fetch(`${API_BASE}/admin/seed`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+      body: JSON.stringify(payload || {}),
+    });
+    return response.json();
+  },
+
   // Quiz management
   getQuizzes: async (): Promise<Quiz[]> => {
     const response = await fetch(`${API_BASE}/quizzes`);
@@ -242,7 +262,7 @@ export const api = {
     return response.json();
   },
 
-  submitResult: async (result: { userId: string; quizId: string; score: number; totalQuestions: number; timeSpent: number }): Promise<QuizResult> => {
+  submitResult: async (result: { userId: string; quizId: string; score: number; totalQuestions: number }): Promise<QuizResult> => {
     const response = await fetch(`${API_BASE}/results`, {
       method: 'POST',
       headers: auth.getHeaders(),
@@ -281,6 +301,20 @@ export const api = {
     const response = await fetch(`${API_BASE}/quiz/active/${quizId}`);
     if (!response.ok) {
       throw new Error('No active quiz');
+    }
+    return response.json();
+  },
+
+  // Start quiz session (server-side timing)
+  startQuiz: async (quizId: string): Promise<{ sessionId: string; startedAt: string; message: string }> => {
+    const response = await fetch(`${API_BASE}/quiz/${quizId}/start`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const message = err?.error || `Failed to start quiz (${response.status})`;
+      throw new Error(message);
     }
     return response.json();
   },

@@ -21,6 +21,7 @@ const QuizPage = () => {
   const [startTime] = useState(Date.now());
   const [isLoading, setIsLoading] = useState(true);
   const [quizEnded, setQuizEnded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     initializeQuiz();
@@ -167,6 +168,7 @@ const QuizPage = () => {
     if (!user || !quiz || quizEnded) return;
 
     setQuizEnded(true);
+    setIsSubmitting(true);
     
     try {
       const serverResult = await api.submitResult({
@@ -193,6 +195,7 @@ const QuizPage = () => {
       navigate("/results");
     } catch (error) {
       console.error('Failed to submit results:', error);
+      setIsSubmitting(false);
       toast({
         title: "Error",
         description: "Failed to submit quiz results. Please try again.",
@@ -248,6 +251,32 @@ const QuizPage = () => {
     );
   }
 
+  // Show submission loader when submitting
+  if (isSubmitting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center animate-fade-in-up">
+          <div className="relative mb-8">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-primary mx-auto mb-4" 
+                 style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary)))' }}></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-primary animate-pulse" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold mb-2 text-glow animate-pulse">Submitting Your Results...</h2>
+          <p className="text-muted-foreground">Please wait while we process your amazing performance!</p>
+          <div className="flex justify-center mt-4">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -260,19 +289,64 @@ const QuizPage = () => {
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              <span className={`font-bold text-lg ${timeLeft <= 10 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
-                {timeLeft}s
-              </span>
+            {/* Circular Timer */}
+            <div className="relative">
+              <div className="relative w-20 h-20">
+                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                  {/* Background circle */}
+                  <path
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="hsl(var(--border))"
+                    strokeWidth="2"
+                  />
+                  {/* Progress circle */}
+                  <path
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke={timeLeft <= 10 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
+                    strokeWidth="3"
+                    strokeDasharray={`${(timeLeft / (currentQuestion?.time || 30)) * 100}, 100`}
+                    strokeLinecap="round"
+                    className={`transition-all duration-1000 ${timeLeft <= 10 ? 'animate-pulse drop-shadow-lg' : ''}`}
+                    style={{
+                      filter: timeLeft <= 10 ? 'drop-shadow(0 0 8px hsl(var(--destructive)))' : 'drop-shadow(0 0 8px hsl(var(--primary)))'
+                    }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <Clock className={`w-4 h-4 mx-auto mb-1 ${timeLeft <= 10 ? 'text-destructive animate-bounce' : 'text-primary'}`} />
+                    <span className={`font-bold text-sm ${timeLeft <= 10 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
+                      {timeLeft}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
           <div className="space-y-2">
-            <Progress value={progress} className="h-3" />
+            <div className="relative">
+              <Progress value={progress} className="h-4 progress-glow" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-primary-foreground drop-shadow-sm">
+                  {Math.round(progress)}%
+                </span>
+              </div>
+            </div>
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Progress: {Math.round(progress)}%</span>
-              <span>Good luck!</span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                {currentQuestionIndex + 1}/{quiz.questions.length} Questions
+              </span>
+              <span className="flex items-center gap-1">
+                🚀 You're doing great!
+              </span>
             </div>
           </div>
         </div>
@@ -307,15 +381,18 @@ const QuizPage = () => {
                   key={index}
                   onClick={() => handleAnswerSelect(index)}
                   disabled={showAnswer}
-                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200`}
+                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200 group hover-lift animate-slide-in-right`}
+                  style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-muted-foreground">
-                      {String.fromCharCode(65 + index)}.
+                    <span className="font-semibold text-primary bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center text-sm group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200">
+                      {String.fromCharCode(65 + index)}
                     </span>
-                    <span>{option}</span>
+                    <span className="group-hover:text-primary transition-colors duration-200">{option}</span>
                   </div>
-                  {getAnswerIcon(index)}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                  </div>
                 </button>
               ))}
             </div>

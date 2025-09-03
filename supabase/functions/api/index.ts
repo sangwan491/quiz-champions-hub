@@ -315,10 +315,11 @@ Deno.serve(async (req) => {
       if (!name) return json({ error: "Name is required" }, { status: 400 });
       if (!phone) return json({ error: "Phone is required" }, { status: 400 });
 
-      // Lightweight format checks
+      // Lightweight format checks - strict E.164 format
       const phoneDigits = phone.replace(/[^0-9+]/g, "");
-      if (phoneDigits.length < 8) {
-        return json({ error: "Invalid phone number" }, { status: 400 });
+      const e164Regex = /^\+[1-9]\d{9,14}$/;
+      if (!e164Regex.test(phoneDigits)) {
+        return json({ error: "Invalid phone format. Use E.164 format: +919876543210" }, { status: 400 });
       }
       if (email && !/^\S+@\S+\.\S+$/.test(email)) {
         return json({ error: "Invalid email format" }, { status: 400 });
@@ -989,16 +990,20 @@ Deno.serve(async (req) => {
       if (req.method === "GET") {
         const list = await rest(`/results?select=*&quiz_id=eq.${quizId}&order=score.desc,time_spent.asc`);
         const quiz = await fetchQuizRaw(quizId);
-        const mapped = (list || []).map((r: any) => ({
-          id: r.id,
-          userId: r.user_id,
-          quizId: r.quiz_id,
-          playerName: r.player_name /* legacy: may be null */,
-          score: Number(r.score),
-          totalQuestions: Number(quiz?.total_questions ?? 0),
-          timeSpent: Number(r.time_spent),
-          completedAt: r.completed_at,
-        }));
+        const mapped: any[] = [];
+        for (const r of list || []) {
+          const user = await fetchUser(r.user_id);
+          mapped.push({
+            id: r.id,
+            userId: r.user_id,
+            quizId: r.quiz_id,
+            playerName: user?.name || "Player",
+            score: Number(r.score),
+            totalQuestions: Number(quiz?.total_questions ?? 0),
+            timeSpent: Number(r.time_spent),
+            completedAt: r.completed_at,
+          });
+        }
         return json(mapped);
       }
       if (req.method === "DELETE") {

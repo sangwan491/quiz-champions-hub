@@ -1,29 +1,50 @@
 import { Trophy, Settings, Home, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 
 const Header = () => {
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const isActive = (path: string) => location.pathname === path;
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isQuizRoute = location.pathname === '/quiz' || location.pathname === '/results';
+
+  // Update user state reactively
+  useEffect(() => {
+    const checkUser = () => {
+      try {
+        const raw = localStorage.getItem('currentUser');
+        setCurrentUser(raw ? JSON.parse(raw) : null);
+      } catch {
+        setCurrentUser(null);
+      }
+    };
+    
+    checkUser();
+    // Listen for storage changes to update user state
+    window.addEventListener('storage', checkUser);
+    return () => window.removeEventListener('storage', checkUser);
+  }, []);
 
   const handleLogout = () => {
     // Clear local auth state
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
+    setCurrentUser(null);
+    
+    // Trigger a custom storage event since localStorage changes from same window don't trigger storage event
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'currentUser',
+      oldValue: 'user_data',
+      newValue: null,
+      url: window.location.href
+    }));
+    
     // Soft navigation by forcing reload so hooks re-evaluate user state
     location.pathname !== '/' ? (window.location.href = '/') : window.location.reload();
   };
-
-  const currentUser = (() => {
-    try {
-      const raw = localStorage.getItem('currentUser');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })();
 
   return (
     <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
@@ -39,8 +60,8 @@ const Header = () => {
           </Link>
 
           <nav className="flex items-center space-x-2">
-            {/* Hide Home and Leaderboard links on admin routes */}
-            {!isAdminRoute && (
+            {/* Hide all nav links during quiz/results flow */}
+            {!isQuizRoute && !isAdminRoute && (
               <>
                 <Button
                   variant={isActive("/") ? "default" : "ghost"}
@@ -63,24 +84,21 @@ const Header = () => {
                     <span className="hidden sm:inline">Leaderboard</span>
                   </Link>
                 </Button>
+
+                <Button
+                  variant={isActive("/admin") ? "default" : "ghost"}
+                  size="sm"
+                  asChild
+                >
+                  <Link to="/admin" className="flex items-center space-x-2">
+                    <Settings className="w-4 h-4" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Link>
+                </Button>
               </>
             )}
 
-            {/* Show Admin except on home and leaderboard routes */}
-            {location.pathname !== '/' && location.pathname !== '/leaderboard' && (
-              <Button
-                variant={isActive("/admin") ? "default" : "ghost"}
-                size="sm"
-                asChild
-              >
-                <Link to="/admin" className="flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Admin</span>
-                </Link>
-              </Button>
-            )}
-
-            {/* Right-aligned auth */}
+            {/* Right-aligned auth - show logout if user exists */}
             {currentUser && (
               <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2 ml-4">
                 <LogOut className="w-4 h-4" />

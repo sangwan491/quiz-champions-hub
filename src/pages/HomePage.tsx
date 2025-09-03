@@ -78,6 +78,19 @@ const HomePage = () => {
     localStorage.setItem("currentUser", JSON.stringify(registeredUser));
   };
 
+  // Listen for logout events to clear user state
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'currentUser' && e.newValue === null) {
+        setUser(null);
+        auth.clearToken();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const startQuiz = async (quiz: Quiz) => {
     if (!user) {
       toast({

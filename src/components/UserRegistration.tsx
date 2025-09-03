@@ -46,13 +46,13 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       return;
     }
 
-    // Phone validation: allow +country and 8-15 digits, also accept common India formats by stripping spaces/dashes
+    // Phone validation: strict E.164 format - requires + and 10-15 digits total
     const normalizedPhone = phone.replace(/[^0-9+]/g, "");
-    const e164Like = /^\+?[1-9]\d{7,14}$/;
-    if (!e164Like.test(normalizedPhone)) {
+    const e164Regex = /^\+[1-9]\d{9,14}$/;
+    if (!e164Regex.test(normalizedPhone)) {
       toast({
-        title: "Invalid phone",
-        description: "Enter a valid phone like +919876543210 or 9876543210",
+        title: "Invalid phone format",
+        description: "Enter phone in E.164 format: +919876543210 (+ followed by country code and number)",
         variant: "destructive"
       });
       return;

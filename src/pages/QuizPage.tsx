@@ -125,7 +125,7 @@ const QuizPage = () => {
         timeSpent: currentQuestion?.time || 30,
       };
       setAnswers(newAnswers);
-      setTimeout(nextQuestion, 2000);
+      nextQuestion();
     }
   }, [timeLeft, showAnswer, quiz, currentQuestion, quizEnded]);
 
@@ -146,7 +146,7 @@ const QuizPage = () => {
     };
     setAnswers(newAnswers);
 
-    setTimeout(nextQuestion, 2000);
+    nextQuestion();
   };
 
   const nextQuestion = () => {

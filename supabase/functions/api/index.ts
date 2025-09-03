@@ -5,6 +5,10 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+// Declare Deno for editor/linter awareness (runtime provides it)
+// deno-lint-ignore no-explicit-any
+declare const Deno: any;
+
 // Basic router for /api/* endpoints
 
 const baseHeaders = {
@@ -736,7 +740,9 @@ Deno.serve(async (req) => {
       const mapped: any[] = [];
       for (const quiz of activeQuizzes) {
         const questions = await fetchQuestionsForQuiz(quiz.id);
-        mapped.push(mapQuiz(quiz, questions));
+        // Strip correct answers for player-facing payload
+        const safeQuestions = (questions || []).map(({ correctAnswer, ...rest }: any) => rest);
+        mapped.push(mapQuiz(quiz, safeQuestions));
       }
       return json(mapped);
     }
@@ -749,7 +755,8 @@ Deno.serve(async (req) => {
       if (!quizList?.[0]) return json({ error: "No active session for this quiz" }, { status: 404 });
       const quiz = quizList[0];
       const questions = await fetchQuestionsForQuiz(quizId);
-      const full = mapQuiz(quiz, questions);
+      const safeQuestions = (questions || []).map(({ correctAnswer, ...rest }: any) => rest);
+      const full = mapQuiz(quiz, safeQuestions);
       return json(full);
     }
 
@@ -847,36 +854,76 @@ Deno.serve(async (req) => {
         // Server-side time validation: find active session
         const sessions = await rest(`/quiz_sessions?user_id=eq.${body.userId}&quiz_id=eq.${body.quizId}&is_active=eq.true&order=started_at.desc`);
         const session = sessions?.[0];
+        const currentTime = new Date();
+        let elapsedSeconds = 0;
+        if (session) {
+          const startTime = new Date(session.started_at);
+          elapsedSeconds = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+        }
+
+        // Compute score on server if answers provided
+        let finalScore: number | null = null;
+        let totalQuestions = Number(quiz.total_questions || 0);
+        try {
+          if (Array.isArray(body.answers)) {
+            const quizQuestions = await fetchQuestionsForQuiz(body.quizId);
+            const qById = new Map<string, any>();
+            for (const q of quizQuestions || []) qById.set(q.id, q);
+
+            let computedScore = 0;
+            let sumAnswerTime = 0;
+            for (const a of body.answers) {
+              const q = qById.get(a.questionId);
+              if (!q) continue;
+              const perQuestionTime = Math.max(0, Math.min(Number(q.time || 30), Number(a.timeSpent || 0)));
+              sumAnswerTime += perQuestionTime;
+              const selectedIdx = (a.selectedAnswer === null || a.selectedAnswer === undefined) ? null : Number(a.selectedAnswer);
+              const isCorrect = selectedIdx !== null && selectedIdx === q.correctAnswer;
+              const basePoints = isCorrect ? Number(q.positivePoints || 0) : -Number(q.negativePoints || 0);
+              const timeLeft = Math.max(0, Number(q.time || 30) - perQuestionTime);
+              const timeBonus = isCorrect && basePoints > 0 ? Math.floor(timeLeft / 3) : 0;
+              const questionScore = isCorrect ? basePoints + timeBonus : basePoints;
+              computedScore += questionScore;
+            }
+
+            // Optional sanity check: if we have a session, ensure total answer time is not wildly less than elapsed
+            if (session && elapsedSeconds > 0 && sumAnswerTime > elapsedSeconds + 10) {
+              // Cap total based on elapsed to mitigate manipulation
+              // This doesn't change per-question distribution but prevents extreme cheating
+              // No-op for now; can log or adjust if needed
+            }
+
+            finalScore = computedScore;
+            totalQuestions = (quizQuestions || []).length;
+          }
+        } catch (_e) {
+          // Fallback to client score if computation fails
+          finalScore = null;
+        }
+
+        // If no session exists, allow submission with fallback time (legacy path)
         if (!session) {
-          // Fallback: allow submission without session for now (will be enforced once migration is complete)
-          console.warn("No quiz session found, allowing submission with fallback validation");
           const result = {
             id: crypto.randomUUID(),
             user_id: body.userId,
             quiz_id: body.quizId,
-            score: body.score,
-            time_spent: 0, // Unknown time without session
-            completed_at: new Date().toISOString(),
+            score: finalScore !== null ? finalScore : Number(body.score || 0),
+            time_spent: 0,
+            completed_at: currentTime.toISOString(),
           };
           await rest(`/results`, { method: "POST", body: JSON.stringify(result) });
-          
           return json({
             id: result.id,
             userId: result.user_id,
             quizId: result.quiz_id,
             playerName: user.name,
             score: result.score,
-            totalQuestions: Number(quiz.total_questions ?? 0),
+            totalQuestions: Number(quiz.total_questions ?? totalQuestions),
             timeSpent: result.time_spent,
             completedAt: result.completed_at,
             warning: "Time validation disabled - quiz_sessions table not available"
           }, { status: 201 });
         }
-
-        // Calculate server-side elapsed time
-        const startTime = new Date(session.started_at);
-        const currentTime = new Date();
-        const elapsedSeconds = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
 
         // Get quiz time limit
         let maxTime = Number(quiz.total_time || 0);
@@ -906,12 +953,12 @@ Deno.serve(async (req) => {
           }) 
         });
 
-        // Create result with server-calculated time
+        // Create result with server-calculated time and score
         const result = {
           id: crypto.randomUUID(),
           user_id: body.userId,
           quiz_id: body.quizId,
-          score: body.score,
+          score: finalScore !== null ? finalScore : Number(body.score || 0),
           time_spent: elapsedSeconds,
           completed_at: currentTime.toISOString(),
         };
@@ -923,7 +970,7 @@ Deno.serve(async (req) => {
           quizId: result.quiz_id,
           playerName: user.name,
           score: result.score,
-          totalQuestions: Number(quiz.total_questions ?? 0),
+          totalQuestions: Number(quiz.total_questions ?? totalQuestions),
           timeSpent: result.time_spent,
           completedAt: result.completed_at,
         }, { status: 201 });

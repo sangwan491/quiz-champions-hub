@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer?: number;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
   positivePoints: number; // points awarded for correct answer
@@ -262,7 +262,7 @@ export const api = {
     return response.json();
   },
 
-  submitResult: async (result: { userId: string; quizId: string; score: number; totalQuestions: number }): Promise<QuizResult> => {
+  submitResult: async (result: { userId: string; quizId: string; score?: number; totalQuestions?: number; answers?: Array<{ questionId: string; selectedAnswer: number | null; timeSpent: number }> }): Promise<QuizResult> => {
     const response = await fetch(`${API_BASE}/results`, {
       method: 'POST',
       headers: auth.getHeaders(),

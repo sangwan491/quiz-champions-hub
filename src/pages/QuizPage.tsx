@@ -122,9 +122,7 @@ const QuizPage = () => {
       newAnswers[currentQuestionIndex] = {
         questionId: currentQuestion?.id,
         selectedAnswer: null,
-        correct: false,
         timeSpent: currentQuestion?.time || 30,
-        points: -(currentQuestion?.negativePoints || 0) // penalty for timeout
       };
       setAnswers(newAnswers);
       setTimeout(nextQuestion, 2000);
@@ -137,22 +135,14 @@ const QuizPage = () => {
     setSelectedAnswer(answerIndex);
     setShowAnswer(true);
 
-    const isCorrect = answerIndex === currentQuestion.correctAnswer;
     const timeSpent = (currentQuestion.time || 30) - timeLeft;
-    const timeBonus = isCorrect && currentQuestion.positivePoints > 0 ? Math.floor(timeLeft / 3) : 0;
-    const basePoints = isCorrect ? currentQuestion.positivePoints : -(currentQuestion.negativePoints || 0);
-    const questionScore = isCorrect ? basePoints + timeBonus : basePoints;
 
-    setScore(score + questionScore);
-
-    // Record the answer
+    // Record the answer without local correctness or score
     const newAnswers = [...answers];
     newAnswers[currentQuestionIndex] = {
       questionId: currentQuestion.id,
       selectedAnswer: answerIndex,
-      correct: isCorrect,
       timeSpent,
-      points: questionScore
     };
     setAnswers(newAnswers);
 
@@ -179,26 +169,25 @@ const QuizPage = () => {
     setQuizEnded(true);
     
     try {
-      await api.submitResult({
+      const serverResult = await api.submitResult({
         userId: user.id,
         quizId: quiz.id,
-        score,
-        totalQuestions: quiz.questions.length,
+        answers: answers,
       });
 
-      // Store result for display on results page
+      // Store result for display on results page (from server)
       const result = {
         playerName: user.name,
-        score,
-        totalQuestions: quiz.questions.length,
-        timeSpent: 0, // Server will calculate actual time
-        completedAt: new Date().toISOString()
+        score: serverResult.score,
+        totalQuestions: serverResult.totalQuestions,
+        timeSpent: serverResult.timeSpent,
+        completedAt: serverResult.completedAt
       };
       localStorage.setItem("lastQuizResult", JSON.stringify(result));
 
       toast({
         title: "Quiz Completed!",
-        description: `You scored ${score} points!`
+        description: `You scored ${serverResult.score} points!`
       });
 
       navigate("/results");
@@ -283,7 +272,7 @@ const QuizPage = () => {
             <Progress value={progress} className="h-3" />
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Progress: {Math.round(progress)}%</span>
-              <span>Score: {score} points</span>
+              <span>Good luck!</span>
             </div>
           </div>
         </div>

@@ -31,6 +31,18 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
       return;
     }
 
+    // Normalize and validate phone similar to registration
+    const normalizedPhone = phone.replace(/[^0-9+]/g, "");
+    const e164Like = /^\+?[1-9]\d{7,14}$/;
+    if (!e164Like.test(normalizedPhone)) {
+      toast({
+        title: "Invalid phone",
+        description: "Enter a valid phone like +919876543210 or 9876543210",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!password.trim()) {
       toast({
         title: "Error",
@@ -43,7 +55,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
     setIsLoading(true);
     
     try {
-      const result = await api.login(phone.trim(), password);
+      const result = await api.login(normalizedPhone.trim(), password);
       
       toast({
         title: "Welcome back!",

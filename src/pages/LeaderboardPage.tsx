@@ -40,6 +40,31 @@ const LeaderboardPage = () => {
       
       if (selectedQuizId === "all") {
         results = await api.getResults();
+        // Aggregate per user: sum scores across quizzes, keep best (lowest) time and latest completion date
+        const byUser = new Map<string, QuizResult & { count: number }>();
+        for (const r of results) {
+          const key = r.userId;
+          const existing = byUser.get(key);
+          if (!existing) {
+            byUser.set(key, { ...r, count: 1 });
+          } else {
+            const aggregated: QuizResult & { count: number } = {
+              ...existing,
+              score: existing.score + r.score,
+              // Keep most recent completion time
+              completedAt: new Date(r.completedAt) > new Date(existing.completedAt) ? r.completedAt : existing.completedAt,
+              // For display, use minimal total time as "best time"
+              timeSpent: Math.min(existing.timeSpent, r.timeSpent),
+              // Keep player name from the most recent entry
+              playerName: new Date(r.completedAt) > new Date(existing.completedAt) ? r.playerName : existing.playerName,
+              // For totalQuestions we can sum or keep latest; choose sum for fairness
+              totalQuestions: existing.totalQuestions + r.totalQuestions,
+              count: existing.count + 1,
+            };
+            byUser.set(key, aggregated);
+          }
+        }
+        results = Array.from(byUser.values()).map(({ count, ...rest }) => rest);
       } else {
         results = await api.getQuizResults(selectedQuizId);
       }

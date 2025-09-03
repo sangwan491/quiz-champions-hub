@@ -46,6 +46,18 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       return;
     }
 
+    // Phone validation: allow +country and 8-15 digits, also accept common India formats by stripping spaces/dashes
+    const normalizedPhone = phone.replace(/[^0-9+]/g, "");
+    const e164Like = /^\+?[1-9]\d{7,14}$/;
+    if (!e164Like.test(normalizedPhone)) {
+      toast({
+        title: "Invalid phone",
+        description: "Enter a valid phone like +919876543210 or 9876543210",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (email && !/^\S+@\S+\.\S+$/.test(email)) {
       toast({
         title: "Error",
@@ -55,6 +67,20 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       return;
     }
 
+    if (linkedinProfile.trim()) {
+      const url = linkedinProfile.trim();
+      // Accept linkedin.com/in/ or company pages; require https and domain linkedin.com
+      const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+\/?$/i;
+      if (!linkedinRegex.test(url)) {
+        toast({
+          title: "Invalid LinkedIn URL",
+          description: "Use a full LinkedIn URL like https://www.linkedin.com/in/username",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
     
     try {
@@ -62,7 +88,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
         name: name.trim(),
         linkedinProfile: linkedinProfile.trim() || undefined,
         email: email.trim() || undefined,
-        phone: phone.trim(),
+        phone: normalizedPhone,
       });
       
       setNewUser(user);

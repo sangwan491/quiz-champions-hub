@@ -76,6 +76,8 @@ const HomePage = () => {
   const handleUserRegistered = (registeredUser: User) => {
     setUser(registeredUser);
     localStorage.setItem("currentUser", JSON.stringify(registeredUser));
+    // Trigger custom event for immediate header update
+    window.dispatchEvent(new CustomEvent('userStateChanged'));
   };
 
   // Listen for logout events to clear user state

@@ -125,12 +125,16 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
   const handlePasswordSet = (user: User, token: string) => {
     // Store user and token
     localStorage.setItem("currentUser", JSON.stringify(user));
+    // Trigger custom event for immediate header update
+    window.dispatchEvent(new CustomEvent('userStateChanged'));
     onUserRegistered(user);
   };
 
   const handleLoginSuccess = (user: User, token: string) => {
     // Store user and token
     localStorage.setItem("currentUser", JSON.stringify(user));
+    // Trigger custom event for immediate header update
+    window.dispatchEvent(new CustomEvent('userStateChanged'));
     onUserRegistered(user);
   };
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trophy, Star, Clock, Target, Home, RotateCcw } from "lucide-react";
+import { Trophy, Star, Clock, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { type QuizResult } from "@/data/questions";
@@ -20,14 +20,17 @@ const ResultsPage = () => {
 
   if (!result) return null;
 
-  const percentage = Math.max(0, Math.min(100, Math.round((result.score / Math.max(result.totalQuestions, 1) / 30) * 100)));
-  const accuracy = Math.max(0, Math.min(100, Math.round((result.score / Math.max(result.totalQuestions * 30, 1)) * 100)));
+  // Use server-provided percentage if available; otherwise omit
+  const percentage = typeof (result as any).percentage === "number"
+    ? Math.max(0, Math.min(100, Math.round((result as any).percentage)))
+    : undefined;
 
   const getPerformanceMessage = () => {
-    if (percentage >= 90) return { message: "Outstanding!", emoji: "🏆", color: "text-accent" };
-    if (percentage >= 80) return { message: "Excellent!", emoji: "⭐", color: "text-primary" };
-    if (percentage >= 70) return { message: "Great job!", emoji: "🎉", color: "text-secondary" };
-    if (percentage >= 60) return { message: "Good effort!", emoji: "👏", color: "text-success" };
+    const pct = percentage ?? 0;
+    if (pct >= 90) return { message: "Outstanding!", emoji: "🏆", color: "text-accent" };
+    if (pct >= 80) return { message: "Excellent!", emoji: "⭐", color: "text-primary" };
+    if (pct >= 70) return { message: "Great job!", emoji: "🎉", color: "text-secondary" };
+    if (pct >= 60) return { message: "Good effort!", emoji: "👏", color: "text-success" };
     return { message: "Keep practicing!", emoji: "💪", color: "text-muted-foreground" };
   };
 
@@ -61,15 +64,7 @@ const ResultsPage = () => {
             </div>
             <p className="text-xl text-muted-foreground mb-6">Total Score</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Target className="w-8 h-8 text-primary" />
-                </div>
-                <div className="text-2xl font-bold">{percentage}%</div>
-                <p className="text-sm text-muted-foreground">Overall Score</p>
-              </div>
-              
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-secondary/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Star className="w-8 h-8 text-secondary" />
@@ -89,32 +84,8 @@ const ResultsPage = () => {
           </div>
         </Card>
 
-        {/* Performance Breakdown */}
-        <Card className="card-glass p-6 mb-8 animate-fade-in-up [animation-delay:0.2s]">
-          <h3 className="text-xl font-semibold mb-4">Performance Breakdown</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Average per Question</span>
-              <span className="font-semibold">{Math.round(result.score / Math.max(result.totalQuestions, 1))} points</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Time per Question</span>
-              <span className="font-semibold">{Math.round(result.timeSpent / Math.max(result.totalQuestions, 1))}s</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Completion Rate</span>
-              <span className="font-semibold">100%</span>
-            </div>
-          </div>
-        </Card>
-
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up [animation-delay:0.4s]">
-          <Button onClick={playAgain} className="btn-hero flex items-center gap-2">
-            <RotateCcw className="w-5 h-5" />
-            Play Again
-          </Button>
-          
           <Button 
             variant="outline" 
             onClick={() => navigate("/leaderboard")}

@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { api, type Question, type Quiz, type User } from "@/data/questions";
+import { shuffleQuizForClient, deshuffleAnswersForServer, type ShuffledQuiz } from "@/data/questions";
 
 const QuizPage = () => {
   const navigate = useNavigate();
@@ -15,13 +16,24 @@ const QuizPage = () => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [quiz, setQuiz] = useState<ShuffledQuiz | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [answers, setAnswers] = useState<any[]>([]);
   const [startTime] = useState(Date.now());
   const [isLoading, setIsLoading] = useState(true);
   const [quizEnded, setQuizEnded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Warn on reload/navigation during quiz
+  useEffect(() => {
+    if (!quiz || quizEnded) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [quiz, quizEnded]);
 
   useEffect(() => {
     initializeQuiz();
@@ -48,22 +60,6 @@ const QuizPage = () => {
       
       setUser(userData);
       
-      // Verify the quiz is still active
-      try {
-        const activeQuiz = await api.getActiveQuiz(quizData.id);
-        setQuiz(activeQuiz);
-        const firstTime = activeQuiz.questions?.[0]?.time || 30;
-        setTimeLeft(firstTime);
-      } catch (error) {
-        toast({
-          title: "Quiz Unavailable",
-          description: "This quiz is no longer active.",
-          variant: "destructive"
-        });
-        navigate("/");
-        return;
-      }
-
       // Check if user has already attempted this quiz
       try {
         const attemptData = await api.checkUserAttempt(userData.id, quizData.id);
@@ -80,9 +76,13 @@ const QuizPage = () => {
         console.error('Error checking user attempt:', error);
       }
 
-      // Start quiz session on server for timing validation
+      // Start quiz session on server, receive quiz payload, then shuffle client-side
       try {
-        await api.startQuiz(quizData.id);
+        const start = await api.startQuiz(quizData.id);
+        const shuffled = shuffleQuizForClient(start.quiz);
+        setQuiz(shuffled);
+        const firstTime = shuffled.questions?.[0]?.time || 30;
+        setTimeLeft(firstTime);
       } catch (error) {
         console.error('Error starting quiz session:', error);
         toast({
@@ -112,49 +112,29 @@ const QuizPage = () => {
 
   useEffect(() => {
     if (!quiz || quizEnded) return;
-
     if (timeLeft > 0 && !showAnswer) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && !showAnswer) {
-      // Time's up - record no answer
-      setShowAnswer(true);
-      const newAnswers = [...answers];
-      newAnswers[currentQuestionIndex] = {
-        questionId: currentQuestion?.id,
-        selectedAnswer: null,
-        timeSpent: currentQuestion?.time || 30,
-      };
-      setAnswers(newAnswers);
-      nextQuestion();
+      // Time's up - record no answer and advance/complete atomically
+      recordAnswer(null);
     }
   }, [timeLeft, showAnswer, quiz, currentQuestion, quizEnded]);
 
-  const handleAnswerSelect = (answerIndex: number) => {
+  const recordAnswer = (answerIndex: number | null) => {
     if (showAnswer || !currentQuestion || !quiz) return;
-
-    setSelectedAnswer(answerIndex);
+    setSelectedAnswer(answerIndex === null ? null : answerIndex);
     setShowAnswer(true);
-
-    const timeSpent = (currentQuestion.time || 30) - timeLeft;
-
-    // Record the answer without local correctness or score
-    const newAnswers = [...answers];
-    newAnswers[currentQuestionIndex] = {
+    const updated = [...answers];
+    updated[currentQuestionIndex] = {
       questionId: currentQuestion.id,
       selectedAnswer: answerIndex,
-      timeSpent,
     };
-    setAnswers(newAnswers);
-
-    nextQuestion();
-  };
-
-  const nextQuestion = () => {
-    if (!quiz) return;
-
-    if (currentQuestionIndex + 1 >= quiz.questions.length) {
-      completeQuiz();
+    setAnswers(updated);
+    const isLast = currentQuestionIndex + 1 >= quiz.questions.length;
+    if (isLast) {
+      // Complete immediately with the updated answers to avoid race condition
+      completeQuiz(updated);
     } else {
       const nextIdx = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIdx);
@@ -164,17 +144,25 @@ const QuizPage = () => {
     }
   };
 
-  const completeQuiz = async () => {
+  const handleAnswerSelect = (answerIndex: number) => {
+    if (!currentQuestion || !quiz) return;
+    recordAnswer(answerIndex);
+  };
+
+  // nextQuestion logic is handled inside recordAnswer to keep state consistent
+
+  const completeQuiz = async (finalAnswers?: any[]) => {
     if (!user || !quiz || quizEnded) return;
 
     setQuizEnded(true);
     setIsSubmitting(true);
     
     try {
+      const deShuffled = deshuffleAnswersForServer(quiz, finalAnswers ?? answers);
       const serverResult = await api.submitResult({
         userId: user.id,
         quizId: quiz.id,
-        answers: answers,
+        answers: deShuffled,
       });
 
       // Store result for display on results page (from server)
@@ -352,8 +340,12 @@ const QuizPage = () => {
         </div>
 
         {/* Question Card */}
-        <Card className="card-quiz animate-fade-in-up">
+        <Card key={currentQuestion.id} className="card-quiz animate-fade-in-up">
           <div className="space-y-6">
+            {/* Warning Banner */}
+            <div className="text-xs text-yellow-800 bg-yellow-100 rounded-md px-3 py-2">
+              Do not refresh or close this page during the quiz. Your progress may be lost.
+            </div>
             {/* Category & Difficulty */}
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium">

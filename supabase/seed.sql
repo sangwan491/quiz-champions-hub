@@ -26,7 +26,7 @@ SELECT public.recalculate_quiz_stats('quiz1');
 SELECT public.recalculate_quiz_stats('quiz2');
 SELECT public.recalculate_quiz_stats('quiz3');
 
--- Sample Results for testing leaderboard
-INSERT INTO public.results (id, user_id, quiz_id, score, time_spent, completed_at) VALUES
-('result1', '4f67ef5b-9ac3-4ae1-904c-380a079856cd', 'quiz1', 25, 65, NOW() - INTERVAL '1 hour'),
-('result2', '4f67ef5b-9ac3-4ae1-904c-380a079856cd', 'quiz2', 45, 120, NOW() - INTERVAL '30 minutes'); 
+-- Sample completed sessions for testing leaderboard
+-- Note: ensure the referenced user exists in your dataset before enabling these
+-- INSERT INTO public.quiz_sessions (id, user_id, quiz_id, started_at, completed_at, score)
+-- VALUES ('session1', '4f67ef5b-9ac3-4ae1-904c-380a079856cd', 'quiz1', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '1 hour', 25); 

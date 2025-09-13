@@ -1,0 +1,630 @@
+openapi: 3.0.3
+info:
+  title: Quiz Champions Hub API
+  version: 1.1.0
+  description: |
+    Supabase Edge Function API for Quiz Champions Hub.
+
+    Highlights:
+    - Auth uses a simple Bearer JWT issued by this API (/users/login or /users/set-password).
+    - Admin is determined solely by the `is_admin` column in `users`.
+    - Player-facing quiz flows never return `correctAnswer` (e.g., session start & active listing).
+    - Single source of truth for attempts/leaderboards: `quiz_sessions`.
+    - Submissions allowed once per user/quiz and only within the quiz time window (+5s grace).
+    - Phone format (repo): **10-digit Indian mobile number**.
+
+servers:
+  - url: https://tddkqotjksbqxzdtsygc.functions.supabase.co/api
+    description: Production (Supabase Edge Functions)
+
+tags:
+  - name: System
+  - name: Admin
+  - name: Auth
+  - name: Questions
+  - name: Quizzes
+  - name: Player
+  - name: Leaderboard
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        error: { type: string }
+        details: { type: string }
+
+    User:
+      type: object
+      required: [id, name, phone, registeredAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        linkedinProfile: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string }
+        registeredAt: { type: string, format: date-time }
+
+    UserWithPasswordSet:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            isPasswordSet: { type: boolean }
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user: { $ref: '#/components/schemas/User' }
+
+    Question:
+      type: object
+      required: [id, question, options, time]
+      properties:
+        id: { type: string }
+        question: { type: string }
+        options:
+          type: array
+          items: { type: string }
+        correctAnswer:
+          type: integer
+          nullable: true
+          description: Admin-only; omitted from player-facing endpoints (active listing & session start)
+        category: { type: string }
+        difficulty: { type: string, enum: [easy, medium, hard] }
+        positivePoints: { type: integer }
+        negativePoints: { type: integer }
+        time: { type: integer, description: Per-question time in seconds }
+        quizIds:
+          type: array
+          items: { type: string }
+
+    Quiz:
+      type: object
+      required: [id, title, status, totalTime, totalQuestions]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [active, inactive, completed] }
+        totalTime: { type: integer }
+        totalQuestions: { type: integer }
+        createdAt: { type: string, format: date-time }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/Question' }
+
+    QuizResult:
+      type: object
+      required: [id, userId, quizId, playerName, score, totalQuestions, timeSpent, completedAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        quizId: { type: string }
+        playerName: { type: string }
+        score: { type: integer }
+        totalQuestions: { type: integer }
+        timeSpent: { type: integer, description: Computed as (completed_at - started_at) seconds }
+        completedAt: { type: string, format: date-time }
+        percentage:
+          type: integer
+          description: Included in POST /results responses (0–100)
+
+    Attempt:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        quizId: { type: string }
+        score: { type: integer }
+        timeSpent: { type: integer }
+        completedAt: { type: string, format: date-time }
+
+    AttemptCheck:
+      type: object
+      properties:
+        hasAttempted: { type: boolean }
+        attempt:
+          oneOf:
+            - $ref: '#/components/schemas/Attempt'
+            - type: 'null'
+
+    StartQuizResponse:
+      type: object
+      properties:
+        sessionId: { type: string }
+        startedAt: { type: string, format: date-time }
+        message: { type: string }
+        quiz:
+          $ref: '#/components/schemas/Quiz'
+      description: Questions in `quiz` are **sanitized** (no `correctAnswer`).
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /admin/me:
+    get:
+      tags: [Admin]
+      summary: Get current admin status and user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isAdmin: { type: boolean }
+                  user: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Unauthorized
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: Not Found
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /users/register:
+    post:
+      tags: [Auth]
+      summary: Register a user (10-digit Indian phone)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: { type: string }
+                phone: { type: string, description: 10-digit Indian number }
+                email: { type: string, nullable: true }
+                linkedinProfile: { type: string, nullable: true }
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserWithPasswordSet' }
+        '400':
+          description: Validation error
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: Already exists
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /users/set-password:
+    post:
+      tags: [Auth]
+      summary: Set password for a newly registered user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, password]
+              properties:
+                userId: { type: string }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Password set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { description: Bad Request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /users/login:
+    post:
+      tags: [Auth]
+      summary: Login with phone and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { description: Bad Request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /questions:
+    get:
+      tags: [Questions]
+      summary: Question bank
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Question' }
+    post:
+      tags: [Questions]
+      summary: Create a bank question
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Question' }
+      responses:
+        '201': { description: Created }
+
+  /questions/{questionId}:
+    parameters:
+      - in: path
+        name: questionId
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Questions]
+      summary: Update a bank question
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Question' }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Questions]
+      summary: Delete a bank question
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Deleted }
+
+  /quizzes:
+    get:
+      tags: [Quizzes]
+      summary: List quizzes with questions
+      description: Note: current implementation includes `correctAnswer` in questions.
+      responses:
+        '200':
+          description: List of quizzes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Quiz' }
+    post:
+      tags: [Quizzes]
+      summary: Create a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                questionIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quiz' }
+
+  /quizzes/{quizId}:
+    parameters:
+      - in: path
+        name: quizId
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Quizzes]
+      summary: Update quiz fields (title, description, status)
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                status: { type: string, enum: [active, inactive, completed] }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quiz' }
+        '404': { description: Not Found }
+    delete:
+      tags: [Quizzes]
+      summary: Delete a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Deleted }
+
+  /quizzes/{quizId}/questions/{questionId}/attach:
+    post:
+      tags: [Quizzes]
+      summary: Attach a question to a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Attached }
+
+  /quizzes/{quizId}/questions/{questionId}/detach:
+    post:
+      tags: [Quizzes]
+      summary: Detach a question from a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Detached }
+
+  /quizzes/{quizId}/questions:
+    post:
+      tags: [Quizzes]
+      summary: Create a new question already attached to the quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Question' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Question' }
+
+  /quizzes/{quizId}/questions/{questionId}:
+    put:
+      tags: [Quizzes]
+      summary: Update a question mapped to a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Question' }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Quizzes]
+      summary: Delete a question and recalc quiz stats
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Deleted }
+
+  /quizzes/active:
+    get:
+      tags: [Player]
+      summary: List active quizzes (no questions included)
+      description: Returns active quizzes metadata; `questions` will be an empty array.
+      responses:
+        '200':
+          description: Active quizzes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Quiz' }
+        '404': { description: Not Found }
+
+  /quiz/{quizId}/start:
+    post:
+      tags: [Player]
+      summary: Start a quiz session for timing (safe questions; no answers)
+      description: Requires authentication. If an existing session is expired, it is auto-finalized with score 0.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StartQuizResponse' }
+        '200':
+          description: Resumed existing valid session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StartQuizResponse' }
+        '400': { description: Already completed or not active, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Quiz not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /user/{userId}/attempts/{quizId}:
+    get:
+      tags: [Player]
+      summary: Check if current user has already attempted a quiz
+      description: Requires authentication; only the authenticated user can query their own attempts.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Attempt info
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptCheck' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+
+  /results:
+    get:
+      tags: [Leaderboard]
+      summary: Global leaderboard (completed sessions)
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/QuizResult' }
+    post:
+      tags: [Player]
+      summary: Submit quiz results
+      description: Requires authentication. Scores are validated server-side; one submission per user/quiz within time window (+5s grace).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, quizId, answers]
+              properties:
+                userId: { type: string }
+                quizId: { type: string }
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      questionId: { type: string }
+                      selectedAnswer: { type: integer, nullable: true }
+                      timeSpent: { type: integer, description: seconds spent on the question }
+      responses:
+        '201':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizResult' }
+        '400': { description: Already attempted / time exceeded / invalid, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized }
+    delete:
+      tags: [Leaderboard]
+      summary: Reset all leaderboards (delete completed sessions)
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Reset complete }
+
+  /results/{quizId}:
+    get:
+      tags: [Leaderboard]
+      summary: Leaderboard for a specific quiz
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Results for the quiz
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/QuizResult' }
+    delete:
+      tags: [Leaderboard]
+      summary: Reset leaderboard for a quiz
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Reset complete }

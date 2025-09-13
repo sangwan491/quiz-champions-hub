@@ -31,13 +31,12 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
       return;
     }
 
-    // Normalize and validate phone - strict E.164 format
-    const normalizedPhone = phone.replace(/[^0-9+]/g, "");
-    const e164Regex = /^\+[1-9]\d{9,14}$/;
-    if (!e164Regex.test(normalizedPhone)) {
+    // Normalize and validate phone - 10-digit mobile number
+    const normalizedPhone = phone.replace(/[^0-9]/g, "");
+    if (!/^\d{10}$/.test(normalizedPhone)) {
       toast({
-        title: "Invalid phone format",
-        description: "Enter phone in E.164 format: +919876543210 (+ followed by country code and number)",
+        title: "Invalid phone number",
+        description: "Enter a 10-digit mobile number",
         variant: "destructive"
       });
       return;
@@ -96,7 +95,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 98765 43210"
+                placeholder="9876543210"
                 className="pl-10"
                 required
               />

@@ -43,7 +43,7 @@ export interface QuizResult {
   timeSpent: number; // in seconds
 }
 
-// API service functions
+// API service functions (results endpoints are backed by quiz_sessions on the server)
 const API_BASE = 'https://tddkqotjksbqxzdtsygc.functions.supabase.co/api';
 
 // Auth token management
@@ -262,7 +262,7 @@ export const api = {
     return response.json();
   },
 
-  submitResult: async (result: { userId: string; quizId: string; score?: number; totalQuestions?: number; answers?: Array<{ questionId: string; selectedAnswer: number | null; timeSpent: number }> }): Promise<QuizResult> => {
+  submitResult: async (result: { userId: string; quizId: string; score?: number; totalQuestions?: number; answers?: Array<{ questionId: string; selectedAnswer: number | null }> }): Promise<QuizResult> => {
     const response = await fetch(`${API_BASE}/results`, {
       method: 'POST',
       headers: auth.getHeaders(),
@@ -290,23 +290,18 @@ export const api = {
 
   // Get active quiz for players
   getActiveQuizzes: async (): Promise<Quiz[]> => {
-    const response = await fetch(`${API_BASE}/quiz/active`);
+    const response = await fetch(`${API_BASE}/quizzes/active`);
     if (!response.ok) {
       throw new Error('No active quizzes');
     }
     return response.json();
   },
 
-  getActiveQuiz: async (quizId: string): Promise<Quiz> => {
-    const response = await fetch(`${API_BASE}/quiz/active/${quizId}`);
-    if (!response.ok) {
-      throw new Error('No active quiz');
-    }
-    return response.json();
-  },
+  // Removed getActiveQuiz in favor of startQuiz returning quiz payload
+  // getActiveQuiz: async (quizId: string): Promise<Quiz> => { ... }
 
-  // Start quiz session (server-side timing)
-  startQuiz: async (quizId: string): Promise<{ sessionId: string; startedAt: string; message: string }> => {
+  // Start quiz session (server-side timing) and get quiz payload
+  startQuiz: async (quizId: string): Promise<{ sessionId: string; startedAt: string; message: string; quiz: Quiz }> => {
     const response = await fetch(`${API_BASE}/quiz/${quizId}/start`, {
       method: 'POST',
       headers: auth.getHeaders(),
@@ -319,6 +314,56 @@ export const api = {
     return response.json();
   },
 };
+
+// Client-side shuffle helpers for answers (keep deterministic mapping for grading)
+export type ShuffledQuiz = Quiz & { shuffleMap: Array<{ questionId: string; optionIndexMap: number[] }>; questionOrder: string[] };
+
+export function shuffleQuizForClient(quiz: Quiz): ShuffledQuiz {
+  const questionOrder = [...quiz.questions.map(q => q.id)];
+  // Shuffle questions
+  for (let i = questionOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questionOrder[i], questionOrder[j]] = [questionOrder[j], questionOrder[i]];
+  }
+  const idToQuestion = new Map(quiz.questions.map(q => [q.id, q] as const));
+
+  const shuffledQuestions: Question[] = [];
+  const shuffleMap: Array<{ questionId: string; optionIndexMap: number[] }> = [];
+
+  for (const qid of questionOrder) {
+    const q = idToQuestion.get(qid)!;
+    const optionIndexMap = q.options.map((_, idx) => idx);
+    // Shuffle options
+    for (let i = optionIndexMap.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [optionIndexMap[i], optionIndexMap[j]] = [optionIndexMap[j], optionIndexMap[i]];
+    }
+    const shuffledOptions = optionIndexMap.map(idx => q.options[idx]);
+    shuffledQuestions.push({ ...q, options: shuffledOptions });
+    shuffleMap.push({ questionId: q.id, optionIndexMap });
+  }
+
+  return {
+    ...quiz,
+    questions: shuffledQuestions,
+    shuffleMap,
+    questionOrder,
+  };
+}
+
+export function deshuffleAnswersForServer(
+  shuffled: ShuffledQuiz,
+  answers: Array<{ questionId: string; selectedAnswer: number | null }>
+): Array<{ questionId: string; selectedAnswer: number | null }> {
+  const mapById = new Map(shuffled.shuffleMap.map(m => [m.questionId, m] as const));
+  return answers.map(a => {
+    if (a.selectedAnswer === null || a.selectedAnswer === undefined) return a;
+    const m = mapById.get(a.questionId);
+    if (!m) return a;
+    const originalIndex = m.optionIndexMap[a.selectedAnswer] ?? a.selectedAnswer;
+    return { questionId: a.questionId, selectedAnswer: originalIndex };
+  });
+}
 
 // Legacy exports for backward compatibility
 export const sampleQuestions: Question[] = [

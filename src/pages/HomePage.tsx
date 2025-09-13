@@ -113,10 +113,10 @@ const HomePage = () => {
       return;
     }
 
-    // Store current user and quiz info for the quiz session
+    // Store current user and quiz info for the quiz session (metadata only)
     localStorage.setItem("playerName", user.name);
     localStorage.setItem("currentUser", JSON.stringify(user));
-    localStorage.setItem("currentQuiz", JSON.stringify(quiz));
+    localStorage.setItem("currentQuiz", JSON.stringify({ id: quiz.id, title: quiz.title }));
     
     navigate("/quiz");
   };
@@ -198,7 +198,7 @@ const HomePage = () => {
                           )}
                         </div>
                         {quiz.description && (
-                          <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
+                          <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
                         )}
                         <div className="flex gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
@@ -207,7 +207,7 @@ const HomePage = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            <span>{Math.round((quiz.totalTime || 0) / Math.max(quiz.totalQuestions || 1, 1))}s per question</span>
+                            <span>{Math.floor((quiz.totalTime || 0) / 60)}m {((quiz.totalTime || 0) % 60)}s total</span>
                           </div>
                         </div>
                       </div>

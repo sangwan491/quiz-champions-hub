@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trophy, Medal, Award, Clock, Target, RefreshCw } from "lucide-react";
+import { Trophy, Medal, Award, Target, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,15 +13,28 @@ const LeaderboardPage = () => {
   const [filter, setFilter] = useState<'all' | 'today' | 'week'>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
   const { toast } = useToast();
 
   useEffect(() => {
     loadQuizzes();
     loadLeaderboard();
+    // Get logged-in user id
+    try {
+      const saved = localStorage.getItem("currentUser");
+      if (saved) {
+        const u = JSON.parse(saved);
+        if (u?.id) setCurrentUserId(u.id);
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
     loadLeaderboard();
+    setCurrentPage(1);
   }, [selectedQuizId]);
 
   const loadQuizzes = async () => {
@@ -40,8 +53,8 @@ const LeaderboardPage = () => {
       
       if (selectedQuizId === "all") {
         results = await api.getResults();
-        // Aggregate per user: sum scores across quizzes, keep best (lowest) time and latest completion date
-        const byUser = new Map<string, QuizResult & { count: number }>();
+        // Aggregate per user: sum scores and total time across quizzes; keep latest completion date
+        const byUser = new Map<string, (QuizResult & { count: number })>();
         for (const r of results) {
           const key = r.userId;
           const existing = byUser.get(key);
@@ -52,21 +65,34 @@ const LeaderboardPage = () => {
               ...existing,
               score: existing.score + r.score,
               // Keep most recent completion time
-              completedAt: new Date(r.completedAt) > new Date(existing.completedAt) ? r.completedAt : existing.completedAt,
-              // For display, use minimal total time as "best time"
-              timeSpent: Math.min(existing.timeSpent, r.timeSpent),
+              completedAt:
+                new Date(r.completedAt) > new Date(existing.completedAt)
+                  ? r.completedAt
+                  : existing.completedAt,
+              // Sum time spent across all attempts (global total time)
+              timeSpent: existing.timeSpent + r.timeSpent,
               // Keep player name from the most recent entry
-              playerName: new Date(r.completedAt) > new Date(existing.completedAt) ? r.playerName : existing.playerName,
-              // For totalQuestions we can sum or keep latest; choose sum for fairness
+              playerName:
+                new Date(r.completedAt) > new Date(existing.completedAt)
+                  ? r.playerName
+                  : existing.playerName,
+              // Sum total questions across attempts
               totalQuestions: existing.totalQuestions + r.totalQuestions,
               count: existing.count + 1,
             };
             byUser.set(key, aggregated);
           }
         }
+        // Save attempt counts and reduce list
+        setAttemptCounts(
+          Object.fromEntries(
+            Array.from(byUser.entries()).map(([uid, v]) => [uid, v.count])
+          )
+        );
         results = Array.from(byUser.values()).map(({ count, ...rest }) => rest);
       } else {
         results = await api.getQuizResults(selectedQuizId);
+        setAttemptCounts({});
       }
       
       setLeaderboard(results.sort((a, b) => b.score - a.score));
@@ -117,6 +143,12 @@ const LeaderboardPage = () => {
   };
 
   const filteredResults = getFilteredResults();
+  const totalPages = Math.max(1, Math.ceil(filteredResults.length / PAGE_SIZE));
+  const paginatedResults = filteredResults.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Current user rank/info
+  const myIndex = filteredResults.findIndex(r => r.userId === currentUserId);
+  const myResult = myIndex >= 0 ? filteredResults[myIndex] : null;
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -160,10 +192,7 @@ const LeaderboardPage = () => {
     });
   };
 
-  // Accuracy proxy: score vs nominal max (30 points per question)
-  const calculateAccuracy = (result: QuizResult) => {
-    return Math.round((result.score / Math.max(result.totalQuestions * 30, 1)) * 100);
-  };
+  // Accuracy removed per requirements
 
   if (isLoading) {
     return (
@@ -235,9 +264,30 @@ const LeaderboardPage = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* My Stats */}
+        {myResult && (
+          <Card className="card-glass p-4 mb-6 animate-fade-in-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">Your Position</div>
+                <div className="text-2xl font-bold">#{myIndex + 1}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Your Points</div>
+                <div className="text-2xl font-bold text-primary">{myResult.score}</div>
+              </div>
+            </div>
+            {selectedQuizId === 'all' && (
+              <div className="mt-2 text-sm text-muted-foreground">
+                {attemptCounts[currentUserId || ""] || 1} quizzes attempted
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Stats Cards (no Average Time) */}
         {filter === 'all' && filteredResults.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Card className="card-glass p-6 text-center animate-fade-in-up">
               <Trophy className="w-8 h-8 text-primary mx-auto mb-3" />
               <div className="text-2xl font-bold">{filteredResults.length}</div>
@@ -251,20 +301,12 @@ const LeaderboardPage = () => {
               </div>
               <p className="text-sm text-muted-foreground">Average Score</p>
             </Card>
-            
-            <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.2s]">
-              <Clock className="w-8 h-8 text-accent mx-auto mb-3" />
-              <div className="text-2xl font-bold">
-                {formatTime(Math.round(filteredResults.reduce((acc, r) => acc + r.timeSpent, 0) / filteredResults.length))}
-              </div>
-              <p className="text-sm text-muted-foreground">Average Time</p>
-            </Card>
           </div>
         )}
 
         {/* Leaderboard */}
         <div className="space-y-4">
-          {filteredResults.length === 0 ? (
+          {paginatedResults.length === 0 ? (
             <Card className="card-glass p-8 text-center">
               <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">
@@ -278,9 +320,8 @@ const LeaderboardPage = () => {
               </p>
             </Card>
           ) : (
-            filteredResults.map((result, index) => {
-              const rank = index + 1;
-              const accuracy = calculateAccuracy(result);
+            paginatedResults.map((result, index) => {
+              const rank = (currentPage - 1) * PAGE_SIZE + index + 1;
               
               return (
                 <Card 
@@ -295,10 +336,17 @@ const LeaderboardPage = () => {
                       </div>
                       
                       <div>
-                        <h3 className="font-semibold text-lg">{result.playerName}</h3>
+                        <h3 className="font-semibold text-lg">
+                          {result.playerName}
+                          {currentUserId === result.userId && (
+                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary align-middle">You</span>
+                          )}
+                        </h3>
                         <div className="text-sm text-muted-foreground">
                           <p>{formatDate(result.completedAt)}</p>
-                          <p className="text-xs">{result.totalQuestions} questions</p>
+                          {selectedQuizId === 'all' ? (
+                            <p className="text-xs">{attemptCounts[result.userId] || 1} quizzes</p>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -308,12 +356,7 @@ const LeaderboardPage = () => {
                         <div className="text-2xl font-bold text-primary">{result.score}</div>
                         <p className="text-sm text-muted-foreground">Points</p>
                       </div>
-                      
-                      <div className="hidden sm:block">
-                        <div className="text-lg font-semibold">{accuracy}%</div>
-                        <p className="text-sm text-muted-foreground">Accuracy</p>
-                      </div>
-                      
+
                       <div className="hidden md:block">
                         <div className="text-lg font-semibold">{formatTime(result.timeSpent)}</div>
                         <p className="text-sm text-muted-foreground">Time</p>
@@ -325,6 +368,19 @@ const LeaderboardPage = () => {
             })
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredResults.length > PAGE_SIZE && (
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+              Prev
+            </Button>
+            <div className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</div>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+              Next
+            </Button>
+          </div>
+        )}
 
         {/* Current User's Rank (if they've played) */}
         {filteredResults.length > 0 && (

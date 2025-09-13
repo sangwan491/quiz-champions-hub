@@ -93,7 +93,7 @@ const Header = () => {
               <span className="text-xl font-bold text-primary-foreground">Q</span>
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              QuizMaster
+              QuizMaster by Brevo
             </h1>
           </Link>
 

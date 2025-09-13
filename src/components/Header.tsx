@@ -90,7 +90,7 @@ const Header = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center">
-              <span className="text-xl font-bold text-primary-foreground">Q</span>
+              <span className="text-xl font-bold text-primary-foreground">B</span>
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               QuizMaster by Brevo

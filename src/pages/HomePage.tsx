@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle } from "lucide-react";
+import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle, Share, Twitter, Linkedin, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -315,6 +315,121 @@ const HomePage = () => {
                     Read Our Blog
                   </a>
                 </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Sharing Section */}
+      <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">
+              Share Your Experience
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Let your network know about your participation in the Brevo Quiz Challenge @ React India 2025! 
+              Copy our pre-written messages or share directly.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Twitter Share */}
+            <Card className="card-glass p-6 hover-lift">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Twitter className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-3">Share on Twitter</h3>
+                  <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge"
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        const tweetText = "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge";
+                        navigator.clipboard.writeText(tweetText);
+                        toast({
+                          title: "Copied!",
+                          description: "Tweet copied to clipboard",
+                        });
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      asChild
+                    >
+                      <a 
+                        href="https://twitter.com/intent/tweet?text=Just%20participated%20in%20the%20Brevo%20Quiz%20Challenge%20%40%20React%20India%202025!%20%F0%9F%9A%80%20Testing%20my%20tech%20knowledge%20and%20discovering%20amazing%20opportunities%20%40Brevo%20%23BrevoQuiz%20%23ReactIndia2025%20%23TechChallenge"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Share className="w-4 h-4 mr-2" />
+                        Tweet
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* LinkedIn Share */}
+            <Card className="card-glass p-6 hover-lift">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Linkedin className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-3">Share on LinkedIn</h3>
+                  <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      "Excited to participate in the Brevo Quiz Challenge at React India 2025! It's been a great way to test my knowledge while learning about Brevo's innovative CRM platform and their engineering culture. Check out their open positions and engineering insights! #ReactIndia2025 #BrevoQuiz #TechCommunity"
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        const linkedinText = "Excited to participate in the Brevo Quiz Challenge at React India 2025! It's been a great way to test my knowledge while learning about Brevo's innovative CRM platform and their engineering culture. Check out their open positions and engineering insights! #ReactIndia2025 #BrevoQuiz #TechCommunity";
+                        navigator.clipboard.writeText(linkedinText);
+                        toast({
+                          title: "Copied!",
+                          description: "LinkedIn post copied to clipboard",
+                        });
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      asChild
+                    >
+                      <a 
+                        href="https://www.linkedin.com/sharing/share-offsite/?url=https://www.brevo.com&summary=Excited%20to%20participate%20in%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20It's%20been%20a%20great%20way%20to%20test%20my%20knowledge%20while%20learning%20about%20Brevo's%20innovative%20CRM%20platform%20and%20their%20engineering%20culture.%20Check%20out%20their%20open%20positions%20and%20engineering%20insights!%20%23ReactIndia2025%20%23BrevoQuiz%20%23TechCommunity"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Share className="w-4 h-4 mr-2" />
+                        Share
+                      </a>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </Card>
           </div>

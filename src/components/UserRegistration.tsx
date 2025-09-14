@@ -146,8 +146,8 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
             <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4">
               <UserPlus className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Welcome to Quiz Champions!</h1>
-            <p className="text-muted-foreground">Join the ultimate quiz competition</p>
+            <h1 className="text-2xl font-bold mb-2">Welcome to Brevo Quiz Challenge!</h1>
+            <p className="text-muted-foreground">Join the ultimate React India 2025 quiz competition</p>
           </div>
 
           <div className="space-y-3">

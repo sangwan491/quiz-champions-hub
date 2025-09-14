@@ -58,7 +58,7 @@ const SetPassword = ({ user, onPasswordSet, onBack }: SetPasswordProps) => {
       
       toast({
         title: "Password Set!",
-        description: "Your account is now ready. Welcome to Quiz Champions!"
+        description: "Your account is now ready. Welcome to the Brevo Quiz Challenge!"
       });
       
       onPasswordSet(result.user, result.token);

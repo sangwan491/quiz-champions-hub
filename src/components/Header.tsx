@@ -107,8 +107,8 @@ const Header = () => {
                 </svg>
               </span>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              QuizMaster by Brevo
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Brevo Quiz Challenge @ React India 2025
             </h1>
           </Link>
 

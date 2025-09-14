@@ -82,7 +82,7 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
             <LogIn className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Welcome Back!</h1>
-          <p className="text-muted-foreground">Sign in to continue to Quiz Champions</p>
+          <p className="text-muted-foreground">Sign in to continue to the Brevo Quiz Challenge</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

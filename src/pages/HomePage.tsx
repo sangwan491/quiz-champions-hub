@@ -266,7 +266,7 @@ const HomePage = () => {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Why Choose QuizMaster?
+            Why Join the Brevo Quiz Challenge?
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">

@@ -262,25 +262,61 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Brevo Ecosystem Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            Why Join the Brevo Quiz Challenge?
+          <h2 className="text-3xl font-bold text-center mb-4">
+            Discover Brevo
           </h2>
+          <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+            The leading CRM suite to grow your business. Explore opportunities to join our team and learn from our engineering insights.
+          </p>
           
           <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="card-glass p-8 hover-lift animate-fade-in-up" style={{animationDelay: `${index * 0.2}s`}}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
-                    <feature.icon className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+            <Card className="card-glass p-8 hover-lift animate-fade-in-up">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
+                  <Users className="w-8 h-8 text-primary-foreground" />
                 </div>
-              </Card>
-            ))}
+                <h3 className="text-xl font-semibold mb-3">Join Our Team</h3>
+                <p className="text-muted-foreground mb-4">Explore exciting career opportunities and be part of our growing team</p>
+                <Button asChild variant="outline" className="w-full">
+                  <a href="https://www.brevo.com/careers/open-positions/" target="_blank" rel="noopener noreferrer">
+                    View Open Positions
+                  </a>
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="card-glass p-8 hover-lift animate-fade-in-up" style={{animationDelay: '0.2s'}}>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
+                  <Zap className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Brevo Platform</h3>
+                <p className="text-muted-foreground mb-4">Discover our all-in-one CRM suite for email, SMS, chat, and more</p>
+                <Button asChild variant="outline" className="w-full">
+                  <a href="https://www.brevo.com/" target="_blank" rel="noopener noreferrer">
+                    Explore Brevo
+                  </a>
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="card-glass p-8 hover-lift animate-fade-in-up" style={{animationDelay: '0.4s'}}>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
+                  <Brain className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Engineering Blog</h3>
+                <p className="text-muted-foreground mb-4">Read about our technical insights, innovations, and engineering culture</p>
+                <Button asChild variant="outline" className="w-full">
+                  <a href="https://engineering.brevo.com/" target="_blank" rel="noopener noreferrer">
+                    Read Our Blog
+                  </a>
+                </Button>
+              </div>
+            </Card>
           </div>
         </div>
       </section>

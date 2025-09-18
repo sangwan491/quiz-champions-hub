@@ -160,7 +160,8 @@ async function requireAdmin(req: Request): Promise<{ user: any } | Response> {
   if (!auth) return json({ error: "Authentication required" }, { status: 401 });
   const u = await fetchUser(auth.userId);
   if (!u) return json({ error: "User not found" }, { status: 404 });
-  if (!!u?.is_admin)
+  const isAdmin = !!u.is_admin;
+  if (!isAdmin)
     return json({ error: "Admin access required" }, { status: 403 });
   return { user: u };
 }
@@ -873,6 +874,45 @@ Deno.serve(async (req) => {
       return json(mapped);
     }
 
+    // Combined user view: active + completed quizzes with attempt status
+    const userQuizzesMatch = path.match(/^\/api\/user\/([^\/]+)\/quizzes$/);
+    if (userQuizzesMatch && req.method === "GET") {
+      const userId = userQuizzesMatch[1];
+      const auth = await authenticateRequest(req);
+      if (!auth) return json({ error: "Authentication required" }, { status: 401 });
+      if (auth.userId !== userId) {
+        return json({ error: "Cannot access another user's quizzes" }, { status: 403 });
+      }
+
+      // Fetch active and completed quizzes
+      const [activeQuizzes, completedQuizzes] = await Promise.all([
+        rest(`/quizzes?select=*&status=eq.active`),
+        rest(`/quizzes?select=*&status=eq.completed`),
+      ]);
+      const all = [...(activeQuizzes || []), ...(completedQuizzes || [])];
+
+      // Fetch all sessions for this user once
+      const sessions = await rest(`/quiz_sessions?select=*&user_id=eq.${userId}`);
+      const attemptedByQuiz = new Map<string, boolean>();
+      for (const s of sessions || []) {
+        const attempted = !!s.completed_at;
+        if (attempted) attemptedByQuiz.set(s.quiz_id, true);
+      }
+
+      const mapped = all.map((quiz: any) => ({
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description || "",
+        status: quiz.status,
+        totalTime: Number(quiz.total_time || 0),
+        totalQuestions: Number(quiz.total_questions || 0),
+        createdAt: quiz.created_at,
+        hasAttempted: attemptedByQuiz.get(quiz.id) === true,
+      }));
+
+      return json(mapped);
+    }
+
     // Quiz session start - creates server-side timing record
     const startSession = path.match(/^\/api\/quiz\/([^\/]+)\/start$/);
     if (startSession && req.method === "POST") {
@@ -925,9 +965,15 @@ Deno.serve(async (req) => {
         const expired = maxTime > 0 && elapsed > maxTime + 5;
         if (expired) {
           // Auto-finalize with zero score
+          const cappedCompletedAt = new Date(
+            Math.min(
+              now.getTime(),
+              new Date(started.getTime() + maxTime * 1000).getTime()
+            )
+          ).toISOString();
           await rest(`/quiz_sessions?id=eq.${existing.id}`, {
             method: "PATCH",
-            body: JSON.stringify({ completed_at: now.toISOString(), score: 0 }),
+            body: JSON.stringify({ completed_at: cappedCompletedAt, score: 0 }),
           });
           return json(
             { error: "Time window expired. Quiz already completed." },
@@ -1092,10 +1138,13 @@ Deno.serve(async (req) => {
         // Validate time limit with 5 second grace period
         if (maxTime > 0 && elapsedSeconds > maxTime + 5) {
           // Auto-finalize with zero score
+          const cappedCompletedAt = new Date(
+            Math.min(now.getTime(), startTime.getTime() + maxTime * 1000)
+          ).toISOString();
           await rest(`/quiz_sessions?id=eq.${session.id}`, {
             method: "PATCH",
             body: JSON.stringify({
-              completed_at: now.toISOString(),
+              completed_at: cappedCompletedAt,
               score: 0,
             }),
           });
@@ -1104,10 +1153,15 @@ Deno.serve(async (req) => {
 
         // Close the existing session with computed score
         const final = finalScore !== null ? finalScore : Number(body.score || 0);
+        const completedAtMs =
+          maxTime > 0
+            ? Math.min(now.getTime(), startTime.getTime() + maxTime * 1000)
+            : now.getTime();
+        const completedAtIso = new Date(completedAtMs).toISOString();
         await rest(`/quiz_sessions?id=eq.${session.id}`, {
           method: "PATCH",
           body: JSON.stringify({
-            completed_at: now.toISOString(),
+            completed_at: completedAtIso,
             score: final,
           }),
         });
@@ -1123,6 +1177,10 @@ Deno.serve(async (req) => {
                 Math.min(100, Math.round((final / maxPossible) * 100))
               )
             : 0;
+        const timeSpentCapped = Math.max(
+          0,
+          Math.floor((completedAtMs - startTime.getTime()) / 1000)
+        );
         return json(
           {
             id: session.id,
@@ -1131,8 +1189,8 @@ Deno.serve(async (req) => {
             playerName: user.name,
             score: final,
             totalQuestions: Number(quiz.total_questions ?? totalQuestions),
-            timeSpent: elapsedSeconds,
-            completedAt: now.toISOString(),
+            timeSpent: timeSpentCapped,
+            completedAt: completedAtIso,
             percentage,
           },
           { status: 201 }
@@ -1267,9 +1325,14 @@ Deno.serve(async (req) => {
       const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
       if (maxTime > 0 && elapsed > maxTime + 5) {
         // Auto-finalize as completed with zero score
+        const completedAtMs = Math.min(
+          now.getTime(),
+          started.getTime() + maxTime * 1000
+        );
+        const completedAtIso = new Date(completedAtMs).toISOString();
         await rest(`/quiz_sessions?id=eq.${s.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ completed_at: now.toISOString(), score: 0 }),
+          body: JSON.stringify({ completed_at: completedAtIso, score: 0 }),
         });
         return json({
           hasAttempted: true,
@@ -1278,8 +1341,11 @@ Deno.serve(async (req) => {
             userId: s.user_id,
             quizId: s.quiz_id,
             score: 0,
-            timeSpent: elapsed,
-            completedAt: now.toISOString(),
+            timeSpent: Math.max(
+              0,
+              Math.floor((completedAtMs - started.getTime()) / 1000)
+            ),
+            completedAt: completedAtIso,
           },
         });
       }

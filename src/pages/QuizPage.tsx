@@ -23,7 +23,9 @@ const QuizPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [quizEnded, setQuizEnded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+
   // Warn on reload/navigation during quiz
   useEffect(() => {
     if (!quiz || quizEnded) return;
@@ -38,6 +40,26 @@ const QuizPage = () => {
   useEffect(() => {
     initializeQuiz();
   }, []);
+
+  type SavedProgress = {
+    sessionId: string;
+    userId: string;
+    quizId: string;
+    quiz: ShuffledQuiz;
+    currentQuestionIndex: number;
+    timeLeft: number;
+    answers: Array<{ questionId: string; selectedAnswer: number | null }>;
+    lastTickAt: number; // ms
+    startedAt?: string; // ISO
+  };
+
+  const makeProgressKey = (uid: string, qid: string) => `quizProgress:${uid}:${qid}`;
+
+  const getMaxTime = (qz: ShuffledQuiz) => {
+    const total = Number(qz.totalTime || 0);
+    if (total && total > 0) return total;
+    return (qz.questions || []).reduce((sum, q) => sum + Number(q.time || 0), 0);
+  };
 
   const initializeQuiz = async () => {
     try {
@@ -76,13 +98,10 @@ const QuizPage = () => {
         console.error('Error checking user attempt:', error);
       }
 
-      // Start quiz session on server, receive quiz payload, then shuffle client-side
+      // Start (or resume) server session and get quiz payload, then resume locally if possible
+      let started;
       try {
-        const start = await api.startQuiz(quizData.id);
-        const shuffled = shuffleQuizForClient(start.quiz);
-        setQuiz(shuffled);
-        const firstTime = shuffled.questions?.[0]?.time || 30;
-        setTimeLeft(firstTime);
+        started = await api.startQuiz(quizData.id);
       } catch (error) {
         console.error('Error starting quiz session:', error);
         toast({
@@ -93,6 +112,107 @@ const QuizPage = () => {
         navigate("/");
         return;
       }
+
+      setSessionId(started.sessionId);
+      setSessionStartedAt(started.startedAt);
+
+      const key = makeProgressKey(userData.id, quizData.id);
+      const savedRaw = localStorage.getItem(key);
+
+      if (savedRaw) {
+        try {
+          const saved: SavedProgress = JSON.parse(savedRaw);
+          // Validate saved progress belongs to same user/quiz; prefer same session but allow resume if session matches
+          if (saved.userId === userData.id && saved.quizId === quizData.id) {
+            const savedQuiz = saved.quiz;
+            const maxTime = getMaxTime(savedQuiz);
+
+            // Overall expiry check using server startedAt if available
+            if (started.startedAt) {
+              const elapsedSinceStart = Math.floor((Date.now() - new Date(started.startedAt).getTime()) / 1000);
+              if (maxTime > 0 && elapsedSinceStart >= maxTime) {
+                // Auto submit with whatever answers we have
+                setQuiz(savedQuiz);
+                setAnswers(saved.answers || []);
+                setCurrentQuestionIndex(saved.currentQuestionIndex || 0);
+                setTimeLeft(0);
+                setIsLoading(false);
+                // Defer submit to next tick so state is set
+                setTimeout(() => completeQuiz(saved.answers || []), 0);
+                return;
+              }
+            }
+
+            // Fast-forward by time elapsed since last tick
+            let idx = saved.currentQuestionIndex || 0;
+            let tLeft = saved.timeLeft ?? (savedQuiz.questions?.[idx]?.time || 30);
+            let updatedAnswers = Array.isArray(saved.answers) ? [...saved.answers] : [];
+            let delta = Math.max(0, Math.floor((Date.now() - (saved.lastTickAt || Date.now())) / 1000));
+            const total = savedQuiz.questions.length;
+
+            while (delta > 0 && idx < total) {
+              if (delta < tLeft) {
+                tLeft = tLeft - delta;
+                delta = 0;
+                break;
+              }
+              // Current question elapsed
+              delta -= tLeft;
+              if (!updatedAnswers[idx]) {
+                updatedAnswers[idx] = { questionId: savedQuiz.questions[idx].id, selectedAnswer: null };
+              }
+              idx += 1;
+              if (idx >= total) break;
+              tLeft = savedQuiz.questions[idx].time || 30;
+            }
+
+            if (idx >= total) {
+              // Completed due to elapsed time
+              setQuiz(savedQuiz);
+              setAnswers(updatedAnswers);
+              setCurrentQuestionIndex(total - 1);
+              setTimeLeft(0);
+              setIsLoading(false);
+              setTimeout(() => completeQuiz(updatedAnswers), 0);
+              return;
+            }
+
+            // Resume at computed position
+            setQuiz(savedQuiz);
+            setAnswers(updatedAnswers);
+            setCurrentQuestionIndex(idx);
+            setSelectedAnswer(null);
+            setShowAnswer(false);
+            setTimeLeft(tLeft);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse saved progress, starting fresh');
+        }
+      }
+
+      // No valid saved progress -> start fresh and shuffle
+      const shuffled = shuffleQuizForClient(started.quiz);
+      setQuiz(shuffled);
+      const firstTime = shuffled.questions?.[0]?.time || 30;
+      setTimeLeft(firstTime);
+      // Persist initial progress
+      try {
+        const keyFresh = makeProgressKey(userData.id, shuffled.id);
+        const payload: SavedProgress = {
+          sessionId: started.sessionId,
+          userId: userData.id,
+          quizId: shuffled.id,
+          quiz: shuffled,
+          currentQuestionIndex: 0,
+          timeLeft: firstTime,
+          answers: [],
+          lastTickAt: Date.now(),
+          startedAt: started.startedAt,
+        };
+        localStorage.setItem(keyFresh, JSON.stringify(payload));
+      } catch {}
 
     } catch (error) {
       console.error('Error initializing quiz:', error);
@@ -120,6 +240,26 @@ const QuizPage = () => {
       recordAnswer(null);
     }
   }, [timeLeft, showAnswer, quiz, currentQuestion, quizEnded]);
+
+  // Persist progress when key states change
+  useEffect(() => {
+    if (!quiz || !user || quizEnded) return;
+    try {
+      const key = makeProgressKey(user.id, quiz.id);
+      const payload: SavedProgress = {
+        sessionId: sessionId || "",
+        userId: user.id,
+        quizId: quiz.id,
+        quiz,
+        currentQuestionIndex,
+        timeLeft,
+        answers: answers as any,
+        lastTickAt: Date.now(),
+        startedAt: sessionStartedAt || undefined,
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch {}
+  }, [quiz, user, currentQuestionIndex, timeLeft, answers, quizEnded, sessionId, sessionStartedAt]);
 
   const recordAnswer = (answerIndex: number | null) => {
     if (showAnswer || !currentQuestion || !quiz) return;
@@ -164,6 +304,12 @@ const QuizPage = () => {
         quizId: quiz.id,
         answers: deShuffled,
       });
+
+      // Clear saved progress on successful completion
+      try {
+        const key = makeProgressKey(user.id, quiz.id);
+        localStorage.removeItem(key);
+      } catch {}
 
       // Store result for display on results page (from server)
       const result = {

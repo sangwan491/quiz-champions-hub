@@ -10,7 +10,7 @@ const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState<QuizResult[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("all");
-  const [filter, setFilter] = useState<'all' | 'today' | 'week'>("all");
+  const [filter, setFilter] = useState<'all' | 'today'>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
@@ -125,12 +125,6 @@ const LeaderboardPage = () => {
           const resultDate = new Date(result.completedAt);
           return resultDate.toDateString() === now.toDateString();
         });
-      case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return leaderboard.filter(result => {
-          const resultDate = new Date(result.completedAt);
-          return resultDate >= weekAgo;
-        });
       default:
         return leaderboard;
     }
@@ -238,7 +232,7 @@ const LeaderboardPage = () => {
 
             {/* Time Filter */}
             <div className="flex bg-muted rounded-lg p-1">
-              {(['all', 'today', 'week'] as const).map((filterOption) => (
+              {(['all', 'today'] as const).map((filterOption) => (
                 <Button
                   key={filterOption}
                   variant={filter === filterOption ? "default" : "ghost"}

@@ -40,6 +40,15 @@ const AdminPage = () => {
     time: 30,
   });
 
+  // Timer input as free-typing string; validated on blur/save
+  const [timeInput, setTimeInput] = useState<string>("30");
+
+  // Filters
+  const [quizCategoryFilter, setQuizCategoryFilter] = useState<string>("all");
+  const [quizDifficultyFilter, setQuizDifficultyFilter] = useState<"all" | "easy" | "medium" | "hard">("all");
+  const [bankCategoryFilter, setBankCategoryFilter] = useState<string>("all");
+  const [bankDifficultyFilter, setBankDifficultyFilter] = useState<"all" | "easy" | "medium" | "hard">("all");
+
   useEffect(() => {
     // verify admin via backend
     (async () => {
@@ -87,10 +96,10 @@ const AdminPage = () => {
       setResults(resultsData);
       setQuestionBank(bank);
       
-      // Select the first quiz by default
-      if (quizzesData.length > 0) {
-        setSelectedQuiz(quizzesData[0]);
-      }
+      // Restore last selected quiz if available
+      const savedSelectedId = localStorage.getItem("adminSelectedQuizId");
+      const nextSelected = (savedSelectedId && quizzesData.find(q => q.id === savedSelectedId)) || quizzesData[0] || null;
+      setSelectedQuiz(nextSelected);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -116,8 +125,10 @@ const AdminPage = () => {
 
     try {
       const newQuiz = await api.createQuiz(quizFormData);
-      setQuizzes([...quizzes, newQuiz]);
+      const updated = [...quizzes, newQuiz];
+      setQuizzes(updated);
       setSelectedQuiz(newQuiz);
+      localStorage.setItem("adminSelectedQuizId", newQuiz.id);
       setIsAddingQuiz(false);
       setQuizFormData({ title: "", description: "" });
       
@@ -141,7 +152,10 @@ const AdminPage = () => {
       setQuizzes(updatedQuizzes);
       
       if (selectedQuiz?.id === quizId) {
-        setSelectedQuiz(updatedQuizzes[0] || null);
+        const next = updatedQuizzes[0] || null;
+        setSelectedQuiz(next);
+        if (next) localStorage.setItem("adminSelectedQuizId", next.id);
+        else localStorage.removeItem("adminSelectedQuizId");
       }
       
       toast({
@@ -169,6 +183,7 @@ const AdminPage = () => {
       negativePoints: 2,
       time: 30,
     });
+    setTimeInput("30");
   };
 
   const startAddingQuestion = () => {
@@ -181,13 +196,14 @@ const AdminPage = () => {
     setQuestionFormData({
       question: question.question,
       options: [...question.options],
-      correctAnswer: question.correctAnswer,
+      correctAnswer: typeof question.correctAnswer === 'number' ? question.correctAnswer : 0,
       category: question.category,
       difficulty: question.difficulty,
       positivePoints: question.positivePoints,
       negativePoints: question.negativePoints,
       time: question.time,
     });
+    setTimeInput(String(question.time));
     setEditingQuestion(question);
     setIsAddingQuestion(false);
   };
@@ -203,60 +219,49 @@ const AdminPage = () => {
 
     // Validation
     if (!questionFormData.question.trim()) {
-      toast({
-        title: "Error",
-        description: "Question text is required",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Question text is required", variant: "destructive" });
       return;
     }
 
     if (questionFormData.options.some(option => !option.trim())) {
-      toast({
-        title: "Error",
-        description: "All answer options are required",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "All answer options are required", variant: "destructive" });
       return;
     }
 
     if (!questionFormData.category.trim()) {
-      toast({
-        title: "Error",
-        description: "Category is required",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Category is required", variant: "destructive" });
       return;
     }
 
+    // Parse timer from free-typed input
+    let parsedTime = parseInt(timeInput, 10);
+    if (Number.isNaN(parsedTime)) {
+      toast({ title: "Invalid time", description: "Please provide a valid number of seconds", variant: "destructive" });
+      return;
+    }
+    parsedTime = Math.max(5, Math.min(600, parsedTime));
+
     try {
+      const payload = { ...questionFormData, time: parsedTime };
       let updatedQuestion;
       if (editingQuestion) {
-        updatedQuestion = await api.updateQuestion(selectedQuiz.id, editingQuestion.id, questionFormData);
-        toast({
-          title: "Success",
-          description: "Question updated successfully"
-        });
+        updatedQuestion = await api.updateQuestion(selectedQuiz.id, editingQuestion.id, payload);
+        toast({ title: "Success", description: "Question updated successfully" });
       } else {
-        updatedQuestion = await api.addQuestion(selectedQuiz.id, questionFormData);
-        toast({
-          title: "Success",
-          description: "Question added successfully"
-        });
+        updatedQuestion = await api.addQuestion(selectedQuiz.id, payload);
+        toast({ title: "Success", description: "Question added successfully" });
       }
 
-      // Refresh quiz data
+      // Refresh quiz data while preserving selection
       const updatedQuizzes = await api.getQuizzes();
       setQuizzes(updatedQuizzes);
-      setSelectedQuiz(updatedQuizzes.find(q => q.id === selectedQuiz.id) || null);
+      const nextSel = updatedQuizzes.find(q => q.id === selectedQuiz.id) || null;
+      setSelectedQuiz(nextSel);
+      if (nextSel) localStorage.setItem("adminSelectedQuizId", nextSel.id);
       
       cancelQuestionEdit();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save question",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to save question", variant: "destructive" });
     }
   };
 
@@ -269,18 +274,13 @@ const AdminPage = () => {
       // Refresh quiz data
       const updatedQuizzes = await api.getQuizzes();
       setQuizzes(updatedQuizzes);
-      setSelectedQuiz(updatedQuizzes.find(q => q.id === selectedQuiz.id) || null);
+      const nextSel = updatedQuizzes.find(q => q.id === selectedQuiz.id) || null;
+      setSelectedQuiz(nextSel);
+      if (nextSel) localStorage.setItem("adminSelectedQuizId", nextSel.id);
       
-      toast({
-        title: "Success",
-        description: "Question deleted successfully"
-      });
+      toast({ title: "Success", description: "Question deleted successfully" });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete question",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to delete question", variant: "destructive" });
     }
   };
 
@@ -292,6 +292,7 @@ const AdminPage = () => {
       const updatedQuizzes = quizzes.map(q => q.id === updated.id ? updated : q);
       setQuizzes(updatedQuizzes);
       setSelectedQuiz(updated);
+      localStorage.setItem("adminSelectedQuizId", updated.id);
       toast({ title: "Updated", description: `Quiz set to ${status}` });
     } catch (e) {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
@@ -303,6 +304,7 @@ const AdminPage = () => {
     try {
       await api.attachQuestionToQuiz(selectedQuiz.id, questionId);
       await loadData();
+      if (selectedQuiz) localStorage.setItem("adminSelectedQuizId", selectedQuiz.id);
       toast({ title: "Attached", description: "Question added to quiz" });
     } catch (e) {
       toast({ title: "Error", description: "Failed to attach question", variant: "destructive" });
@@ -314,6 +316,7 @@ const AdminPage = () => {
     try {
       await api.detachQuestionFromQuiz(selectedQuiz.id, questionId);
       await loadData();
+      if (selectedQuiz) localStorage.setItem("adminSelectedQuizId", selectedQuiz.id);
       toast({ title: "Detached", description: "Question removed from quiz" });
     } catch (e) {
       toast({ title: "Error", description: "Failed to detach question", variant: "destructive" });
@@ -334,6 +337,12 @@ const AdminPage = () => {
       default: return 'text-muted-foreground';
     }
   };
+
+  // Derived data for filters
+  const quizCategories = selectedQuiz ? Array.from(new Set(selectedQuiz.questions.map(q => q.category).filter(Boolean))) : [];
+  const filteredQuizQuestions = selectedQuiz ? selectedQuiz.questions.filter(q => (quizCategoryFilter === 'all' || q.category === quizCategoryFilter) && (quizDifficultyFilter === 'all' || q.difficulty === quizDifficultyFilter)) : [];
+  const bankCategories = Array.from(new Set(questionBank.map(q => q.category).filter(Boolean)));
+  const filteredBank = questionBank.filter(q => (bankCategoryFilter === 'all' || q.category === bankCategoryFilter) && (bankDifficultyFilter === 'all' || q.difficulty === bankDifficultyFilter));
 
   if (isLoading) {
     return (
@@ -376,7 +385,11 @@ const AdminPage = () => {
                 <Label>Select Quiz:</Label>
                 <Select 
                   value={selectedQuiz?.id || ""} 
-                  onValueChange={(value) => setSelectedQuiz(quizzes.find(q => q.id === value) || null)}
+                  onValueChange={(value) => {
+                    const next = quizzes.find(q => q.id === value) || null;
+                    setSelectedQuiz(next);
+                    if (next) localStorage.setItem("adminSelectedQuizId", next.id);
+                  }}
                 >
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Select a quiz" />
@@ -391,7 +404,7 @@ const AdminPage = () => {
                 </Select>
               </div>
               
-              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero">
+              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero" type="button">
                 <Plus className="w-4 h-4 mr-2" />
                 New Quiz
               </Button>
@@ -402,7 +415,7 @@ const AdminPage = () => {
               <Card className="card-glass p-6 animate-fade-in-up">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">Create New Quiz</h3>
-                  <Button variant="ghost" size="sm" onClick={() => setIsAddingQuiz(false)}>
+                  <Button variant="ghost" size="sm" onClick={() => setIsAddingQuiz(false)} type="button">
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
@@ -429,11 +442,11 @@ const AdminPage = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button onClick={handleCreateQuiz}>
+                    <Button onClick={handleCreateQuiz} type="button">
                       <Save className="w-4 h-4 mr-2" />
                       Create Quiz
                     </Button>
-                    <Button variant="outline" onClick={() => setIsAddingQuiz(false)}>
+                    <Button variant="outline" onClick={() => setIsAddingQuiz(false)} type="button">
                       Cancel
                     </Button>
                   </div>
@@ -464,7 +477,7 @@ const AdminPage = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button onClick={startAddingQuestion} className="btn-hero">
+                    <Button onClick={startAddingQuestion} className="btn-hero" type="button">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Question
                     </Button>
@@ -472,6 +485,7 @@ const AdminPage = () => {
                       variant="outline" 
                       onClick={() => handleDeleteQuiz(selectedQuiz.id)}
                       className="text-destructive hover:text-destructive"
+                      type="button"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -487,7 +501,7 @@ const AdminPage = () => {
                   <h3 className="text-lg font-semibold">
                     {editingQuestion ? 'Edit Question' : 'Add New Question'}
                   </h3>
-                  <Button variant="ghost" size="sm" onClick={cancelQuestionEdit}>
+                  <Button variant="ghost" size="sm" onClick={cancelQuestionEdit} type="button">
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
@@ -597,11 +611,19 @@ const AdminPage = () => {
                       <Label htmlFor="time">Time (seconds)</Label>
                       <Input
                         id="time"
-                        type="number"
-                        min="5"
-                        max="600"
-                        value={questionFormData.time}
-                        onChange={(e) => setQuestionFormData({ ...questionFormData, time: parseInt(e.target.value) || 30 })}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={timeInput}
+                        onChange={(e) => setTimeInput(e.target.value)}
+                        onBlur={() => {
+                          let v = parseInt(timeInput, 10);
+                          if (Number.isNaN(v)) v = questionFormData.time;
+                          v = Math.max(5, Math.min(600, v));
+                          setQuestionFormData({ ...questionFormData, time: v });
+                          setTimeInput(String(v));
+                        }}
+                        placeholder="e.g., 30"
                         className="mt-2"
                       />
                     </div>
@@ -609,11 +631,11 @@ const AdminPage = () => {
 
                   {/* Action Buttons */}
                   <div className="flex gap-3">
-                    <Button onClick={saveQuestion} className="flex items-center gap-2">
+                    <Button onClick={saveQuestion} className="flex items-center gap-2" type="button">
                       <Save className="w-4 h-4" />
                       {editingQuestion ? 'Update' : 'Save'} Question
                     </Button>
-                    <Button variant="outline" onClick={cancelQuestionEdit}>
+                    <Button variant="outline" onClick={cancelQuestionEdit} type="button">
                       Cancel
                     </Button>
                   </div>
@@ -627,9 +649,35 @@ const AdminPage = () => {
                 <h3 className="text-xl font-semibold">
                   Questions ({selectedQuiz.totalQuestions})
                 </h3>
+
+                {/* Filters for selected quiz questions */}
+                <div className="flex flex-wrap gap-3 items-center">
+                  <Select value={quizCategoryFilter} onValueChange={(v) => setQuizCategoryFilter(v)}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      {quizCategories.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={quizDifficultyFilter} onValueChange={(v) => setQuizDifficultyFilter(v as any)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 
-                {selectedQuiz.questions.map((question, index) => (
-                  <Card key={question.id} className="card-glass p-6 animate-fade-in-up" style={{animationDelay: `${index * 0.1}s`}}>
+                {filteredQuizQuestions.map((question, index) => (
+                  <Card key={question.id} className="card-glass p-6 animate-fade-in-up" style={{animationDelay: `${index * 0.1}s`} }>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
@@ -673,6 +721,7 @@ const AdminPage = () => {
                           variant="outline" 
                           size="sm" 
                           onClick={() => startEditingQuestion(question)}
+                          type="button"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -681,6 +730,7 @@ const AdminPage = () => {
                           size="sm" 
                           onClick={() => deleteQuestion(question.id)}
                           className="text-destructive hover:text-destructive"
+                          type="button"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -689,15 +739,15 @@ const AdminPage = () => {
                   </Card>
                 ))}
 
-                {selectedQuiz.questions.length === 0 && (
+                {filteredQuizQuestions.length === 0 && (
                   <Card className="card-glass p-8 text-center">
                     <Plus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h4 className="text-xl font-semibold mb-2">No questions yet</h4>
+                    <h4 className="text-xl font-semibold mb-2">No questions match your filters</h4>
                     <p className="text-muted-foreground mb-4">
-                      Start building your quiz by adding questions
+                      Adjust filters or add new questions
                     </p>
-                    <Button onClick={startAddingQuestion} className="btn-hero">
-                      Add First Question
+                    <Button onClick={startAddingQuestion} className="btn-hero" type="button">
+                      Add Question
                     </Button>
                   </Card>
                 )}
@@ -710,8 +760,35 @@ const AdminPage = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">Question Bank</h3>
                 </div>
+
+                {/* Bank filters */}
+                <div className="flex flex-wrap gap-3 items-center mb-4">
+                  <Select value={bankCategoryFilter} onValueChange={(v) => setBankCategoryFilter(v)}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      {bankCategories.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={bankDifficultyFilter} onValueChange={(v) => setBankDifficultyFilter(v as any)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid gap-3">
-                  {questionBank.map((q) => {
+                  {filteredBank.map((q) => {
                     const attached = selectedQuiz.questions.some(sq => sq.id === q.id);
                     return (
                       <div key={q.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -720,12 +797,15 @@ const AdminPage = () => {
                           <p className="text-sm text-muted-foreground">{q.category} • {q.difficulty} • {q.time}s</p>
                         </div>
                         <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => startEditingQuestion(q)} type="button">
+                            <Edit className="w-4 h-4 mr-1" /> Edit
+                          </Button>
                           {attached ? (
-                            <Button size="sm" variant="outline" onClick={() => detachFromQuiz(q.id)}>
+                            <Button size="sm" variant="outline" onClick={() => detachFromQuiz(q.id)} type="button">
                               <Unlink className="w-4 h-4 mr-1" /> Remove
                             </Button>
                           ) : (
-                            <Button size="sm" variant="outline" onClick={() => attachToQuiz(q.id)}>
+                            <Button size="sm" variant="outline" onClick={() => attachToQuiz(q.id)} type="button">
                               <LinkIcon className="w-4 h-4 mr-1" /> Add
                             </Button>
                           )}
@@ -748,13 +828,13 @@ const AdminPage = () => {
                     <p className="text-muted-foreground">Current status: {selectedQuiz.status}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant={selectedQuiz.status === 'active' ? 'default' : 'outline'} onClick={() => setQuizStatus('active')}>
+                    <Button variant={selectedQuiz.status === 'active' ? 'default' : 'outline'} onClick={() => setQuizStatus('active')} type="button">
                       <ToggleRight className="w-4 h-4 mr-1" /> Active
                     </Button>
-                    <Button variant={selectedQuiz.status === 'inactive' ? 'default' : 'outline'} onClick={() => setQuizStatus('inactive')}>
+                    <Button variant={selectedQuiz.status === 'inactive' ? 'default' : 'outline'} onClick={() => setQuizStatus('inactive')} type="button">
                       <ToggleLeft className="w-4 h-4 mr-1" /> Inactive
                     </Button>
-                    <Button variant={selectedQuiz.status === 'completed' ? 'default' : 'outline'} onClick={() => setQuizStatus('completed')}>
+                    <Button variant={selectedQuiz.status === 'completed' ? 'default' : 'outline'} onClick={() => setQuizStatus('completed')} type="button">
                       <Clock className="w-4 h-4 mr-1" /> Completed
                     </Button>
                   </div>
@@ -772,7 +852,7 @@ const AdminPage = () => {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold">Leaderboard Management</h3>
                 <div className="flex gap-2">
-                  <Button onClick={() => api.resetLeaderboard().then(() => toast({ title: 'Success', description: 'Global leaderboard reset successfully' })).catch(() => toast({ title:'Error', description: 'Failed to reset global leaderboard', variant: 'destructive' }))} variant="destructive">
+                  <Button onClick={() => api.resetLeaderboard().then(() => toast({ title: 'Success', description: 'Global leaderboard reset successfully' })).catch(() => toast({ title:'Error', description: 'Failed to reset global leaderboard', variant: 'destructive' }))} variant="destructive" type="button">
                     <RotateCcw className="w-4 h-4 mr-2" />
                     Reset Global Leaderboard
                   </Button>
@@ -798,6 +878,7 @@ const AdminPage = () => {
                           variant="outline" 
                           size="sm"
                           disabled={quizResults.length === 0}
+                          type="button"
                         >
                           <RotateCcw className="w-4 h-4 mr-1" />
                           Reset

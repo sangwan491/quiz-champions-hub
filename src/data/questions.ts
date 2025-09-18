@@ -252,6 +252,17 @@ export const api = {
     return response.json();
   },
 
+  // New: Combined quizzes (active + completed) for the user with attempt info
+  getUserQuizzes: async (userId: string): Promise<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt'> & { hasAttempted: boolean }>> => {
+    const response = await fetch(`${API_BASE}/user/${userId}/quizzes`, {
+      headers: auth.getHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch user quizzes');
+    }
+    return response.json();
+  },
+
   checkUserAttempt: async (userId: string, quizId: string): Promise<{ hasAttempted: boolean; attempt: QuizResult | null }> => {
     const response = await fetch(`${API_BASE}/user/${userId}/attempts/${quizId}`, {
       headers: auth.getHeaders(),

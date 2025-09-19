@@ -1015,6 +1015,14 @@ Deno.serve(async (req) => {
     // Results list/create/reset
     if (path === "/api/results") {
       if (req.method === "GET") {
+        const auth = await authenticateRequest(req);
+        let isAdmin = false;
+        if (auth) {
+          try {
+            const u = await fetchUser(auth.userId);
+            isAdmin = !!u?.is_admin;
+          } catch {}
+        }
         const sessions = await rest(
           `/quiz_sessions?select=*&completed_at=not.is.null&order=completed_at.desc`
         );
@@ -1038,6 +1046,7 @@ Deno.serve(async (req) => {
               )
             ),
             completedAt: s.completed_at,
+            ...(isAdmin && user?.phone ? { phone: user.phone } : {}),
           });
         }
         return json(mapped);

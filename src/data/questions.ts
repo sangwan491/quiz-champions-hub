@@ -41,6 +41,7 @@ export interface QuizResult {
   totalQuestions: number;
   completedAt: string;
   timeSpent: number; // in seconds
+  phone?: string; // admin-only (optional)
 }
 
 // API service functions (results endpoints are backed by quiz_sessions on the server)
@@ -243,12 +244,16 @@ export const api = {
 
   // Results
   getResults: async (): Promise<QuizResult[]> => {
-    const response = await fetch(`${API_BASE}/results`);
+    const response = await fetch(`${API_BASE}/results`, {
+      headers: auth.getHeaders(),
+    });
     return response.json();
   },
 
   getQuizResults: async (quizId: string): Promise<QuizResult[]> => {
-    const response = await fetch(`${API_BASE}/results/${quizId}`);
+    const response = await fetch(`${API_BASE}/results/${quizId}`, {
+      headers: auth.getHeaders(),
+    });
     return response.json();
   },
 

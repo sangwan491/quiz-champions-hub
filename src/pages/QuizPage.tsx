@@ -26,6 +26,25 @@ const QuizPage = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
 
+  // Prevent copy/cut/paste and text selection during quiz
+  useEffect(() => {
+    if (!quiz || quizEnded) return;
+    const stop = (e: Event) => e.preventDefault();
+    const disableContext = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('copy', stop);
+    document.addEventListener('cut', stop);
+    document.addEventListener('paste', stop);
+    document.addEventListener('contextmenu', disableContext);
+    document.addEventListener('selectstart', stop);
+    return () => {
+      document.removeEventListener('copy', stop);
+      document.removeEventListener('cut', stop);
+      document.removeEventListener('paste', stop);
+      document.removeEventListener('contextmenu', disableContext);
+      document.removeEventListener('selectstart', stop);
+    };
+  }, [quiz, quizEnded]);
+
   // Warn on reload/navigation during quiz
   useEffect(() => {
     if (!quiz || quizEnded) return;
@@ -359,7 +378,7 @@ const QuizPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading quiz...</p>
@@ -370,7 +389,7 @@ const QuizPage = () => {
 
   if (!quiz || !currentQuestion) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <Card className="card-glass p-8 text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Quiz Not Available</h2>
@@ -388,7 +407,7 @@ const QuizPage = () => {
   // Show submission loader when submitting
   if (isSubmitting) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <div className="text-center animate-fade-in-up">
           <div className="relative mb-8">
             <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-primary mx-auto mb-4" 
@@ -412,7 +431,7 @@ const QuizPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 select-none">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Progress Header */}
         <div className="mb-8">
@@ -554,6 +573,13 @@ const QuizPage = () => {
                 </div>
               </div>
             )}
+
+            {/* End Quiz Early */}
+            <div className="pt-2 flex justify-end">
+              <Button variant="outline" onClick={() => completeQuiz()} disabled={isSubmitting}>
+                End Quiz
+              </Button>
+            </div>
           </div>
         </Card>
 

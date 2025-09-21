@@ -34,8 +34,6 @@ const AdminPage = () => {
     question: "",
     options: ["", "", "", ""],
     correctAnswer: 0,
-    category: "",
-    difficulty: "easy" as "easy" | "medium" | "hard",
     positivePoints: 10,
     negativePoints: 2,
     time: 30,
@@ -184,8 +182,6 @@ const AdminPage = () => {
       question: "",
       options: ["", "", "", ""],
       correctAnswer: 0,
-      category: "",
-      difficulty: "easy",
       positivePoints: 10,
       negativePoints: 2,
       time: 30,
@@ -206,8 +202,6 @@ const AdminPage = () => {
       question: question.question,
       options: [...question.options],
       correctAnswer: typeof question.correctAnswer === 'number' ? question.correctAnswer : 0,
-      category: question.category,
-      difficulty: question.difficulty,
       positivePoints: question.positivePoints,
       negativePoints: question.negativePoints,
       time: question.time,
@@ -236,11 +230,6 @@ const AdminPage = () => {
 
     if (questionFormData.options.some(option => !option.trim())) {
       toast({ title: "Error", description: "All answer options are required", variant: "destructive" });
-      return;
-    }
-
-    if (!questionFormData.category.trim()) {
-      toast({ title: "Error", description: "Category is required", variant: "destructive" });
       return;
     }
 
@@ -341,17 +330,16 @@ const AdminPage = () => {
   };
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-500';
-      case 'medium': return 'text-yellow-500';
-      case 'hard': return 'text-red-500';
-      default: return 'text-muted-foreground';
-    }
+    return 'text-muted-foreground';
   };
 
   // Derived data (filters removed)
-  const filteredQuizQuestions = selectedQuiz ? selectedQuiz.questions : [];
   const filteredBank = questionBank;
+  const filteredQuizQuestions = selectedQuiz
+    ? ((selectedQuiz.questions as Array<string | Question>).map((q) =>
+        typeof q === 'string' ? filteredBank.find((b) => b.id === q) : q
+      ).filter(Boolean) as Question[])
+    : [];
 
   const openBankEditModal = (q: Question) => {
     setBankEditQuestion(q);
@@ -359,8 +347,6 @@ const AdminPage = () => {
       question: q.question,
       options: [...q.options],
       correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-      category: q.category,
-      difficulty: q.difficulty,
       positivePoints: q.positivePoints,
       negativePoints: q.negativePoints,
       time: q.time,
@@ -607,37 +593,7 @@ const AdminPage = () => {
                   </div>
 
                   {/* Category and Settings */}
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div>
-                      <Label htmlFor="category">Category</Label>
-                      <Input
-                        id="category"
-                        value={questionFormData.category}
-                        onChange={(e) => setQuestionFormData({ ...questionFormData, category: e.target.value })}
-                        placeholder="e.g., Science, History"
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="difficulty">Difficulty</Label>
-                      <Select 
-                        value={questionFormData.difficulty} 
-                        onValueChange={(value: "easy" | "medium" | "hard") => 
-                          setQuestionFormData({ ...questionFormData, difficulty: value })
-                        }
-                      >
-                        <SelectTrigger className="mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Easy</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="hard">Hard</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="positivePoints">Positive Points</Label>
                       <Input
@@ -722,19 +678,11 @@ const AdminPage = () => {
                 </h3>
                 
                 {filteredQuizQuestions.map((question, index) => (
-                  <Card key={question.id} className="card-glass p-6 animate-fade-in-up" style={{animationDelay: `${index * 0.1}s`} }>
+                  <Card key={(question as Question).id} className="card-glass p-6 animate-fade-in-up" style={{animationDelay: `${index * 0.1}s`} }>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium">
-                            {question.category}
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium bg-muted/20 ${getDifficultyColor(question.difficulty)}`}>
-                            {question.difficulty.toUpperCase()}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            +{question.positivePoints} / -{question.negativePoints} pts • {question.time}s
-                          </span>
+                          <span className="text-sm text-muted-foreground">+{question.positivePoints} / -{question.negativePoints} pts • {question.time}s</span>
                         </div>
 
                         {editingQuestion?.id === question.id ? (
@@ -775,32 +723,7 @@ const AdminPage = () => {
                                 ))}
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                              <div>
-                                <Label htmlFor="category-inline">Category</Label>
-                                <Input
-                                  id="category-inline"
-                                  value={questionFormData.category}
-                                  onChange={(e) => setQuestionFormData({ ...questionFormData, category: e.target.value })}
-                                  className="mt-2"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="difficulty-inline">Difficulty</Label>
-                                <Select 
-                                  value={questionFormData.difficulty}
-                                  onValueChange={(value: "easy" | "medium" | "hard") => setQuestionFormData({ ...questionFormData, difficulty: value })}
-                                >
-                                  <SelectTrigger className="mt-2">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="easy">Easy</SelectItem>
-                                    <SelectItem value="medium">Medium</SelectItem>
-                                    <SelectItem value="hard">Hard</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div>
                                 <Label htmlFor="positivePoints-inline">Positive Points</Label>
                                 <Input
@@ -949,7 +872,9 @@ const AdminPage = () => {
                       <div key={q.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <p className="font-medium">{q.question}</p>
-                          <p className="text-sm text-muted-foreground">{q.category} • {q.difficulty} • {q.time}s</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">{q.time}s</span>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => openBankEditModal(q)} type="button">
@@ -1013,22 +938,7 @@ const AdminPage = () => {
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <div>
-                          <Label htmlFor="bank-category">Category</Label>
-                          <Input id="bank-category" value={questionFormData.category} onChange={(e) => setQuestionFormData({ ...questionFormData, category: e.target.value })} className="mt-2" />
-                        </div>
-                        <div>
-                          <Label htmlFor="bank-difficulty">Difficulty</Label>
-                          <Select value={questionFormData.difficulty} onValueChange={(value: "easy" | "medium" | "hard") => setQuestionFormData({ ...questionFormData, difficulty: value })}>
-                            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="easy">Easy</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="hard">Hard</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="bank-positive">Positive Points</Label>
                           <Input id="bank-positive" type="text" inputMode="numeric" pattern="[0-9]*" value={positivePointsInput} onChange={(e) => setPositivePointsInput(e.target.value)} onBlur={() => {

@@ -177,8 +177,6 @@ function mapQuestion(q: any) {
     question: q.question,
     options: safeParse<string[]>(q.options, []),
     correctAnswer: q.correct_answer,
-    category: q.category || "",
-    difficulty: q.difficulty,
     positivePoints: Number(q.positive_points || 10),
     negativePoints: Number(q.negative_points || 0),
     time: Number(q.time),
@@ -500,8 +498,6 @@ Deno.serve(async (req) => {
           question: q.question,
           options: safeParse<string[]>(q.options, []),
           correctAnswer: q.correct_answer,
-          category: q.category || "",
-          difficulty: q.difficulty,
           positivePoints: Number(q.positive_points || 10),
           negativePoints: Number(q.negative_points || 0),
           time: Number(q.time),
@@ -519,8 +515,6 @@ Deno.serve(async (req) => {
           question: body.question,
           options: JSON.stringify(body.options || []),
           correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || "easy",
           positive_points: body.positivePoints ?? 10,
           negative_points: body.negativePoints ?? 0,
           time: body.time ?? 30,
@@ -559,8 +553,7 @@ Deno.serve(async (req) => {
           updates.options = JSON.stringify(body.options);
         if (body.correctAnswer !== undefined)
           updates.correct_answer = body.correctAnswer;
-        if (body.category !== undefined) updates.category = body.category;
-        if (body.difficulty !== undefined) updates.difficulty = body.difficulty;
+
         if (body.positivePoints !== undefined)
           updates.positive_points = body.positivePoints;
         if (body.negativePoints !== undefined)
@@ -609,8 +602,15 @@ Deno.serve(async (req) => {
         const quizzes = await rest(`/quizzes?select=*`);
         const mapped: any[] = [];
         for (const quiz of quizzes || []) {
-          const questions = await fetchQuestionsForQuiz(quiz.id);
-          mapped.push(mapQuiz(quiz, questions));
+                  // Return only question IDs; frontend will join details from bank
+        const allQuestions = await rest(`/questions?select=id,quiz_ids`);
+        const ids = (allQuestions || [])
+          .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quiz.id))
+          .map((q: any) => q.id);
+        mapped.push({
+          ...mapQuiz(quiz, []),
+          questions: ids,
+        });
         }
         return json(mapped);
       }
@@ -687,8 +687,12 @@ Deno.serve(async (req) => {
         const quiz = await rest(`/quizzes?id=eq.${quizId}&select=*`);
         if (!quiz?.[0])
           return json({ error: "Quiz not found" }, { status: 404 });
-        const questions = await fetchQuestionsForQuiz(quizId);
-        const updated = mapQuiz(quiz[0], questions);
+        // Return only question IDs for updated quiz
+        const allQuestions = await rest(`/questions?select=id,quiz_ids`);
+        const ids = (allQuestions || [])
+          .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quizId))
+          .map((q: any) => q.id);
+        const updated = { ...mapQuiz(quiz[0], []), questions: ids };
         return json(updated);
       }
       if (req.method === "DELETE") {
@@ -785,8 +789,6 @@ Deno.serve(async (req) => {
           question: body.question,
           options: JSON.stringify(body.options || []),
           correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || "easy",
           positive_points: body.positivePoints ?? 10,
           negative_points: body.negativePoints ?? 0,
           time: body.time ?? 30,
@@ -928,9 +930,12 @@ Deno.serve(async (req) => {
         return json({ error: "Quiz is not active" }, { status: 400 });
 
       // Preload safe quiz payload without answers
-      const questions = await fetchQuestionsForQuiz(quizId);
-      const safeQuestions = (questions || []).map(({ correctAnswer, ...rest }: any) => rest);
-      const quizPayload = mapQuiz(quiz, safeQuestions);
+      // Return only question IDs; frontend will join details from bank
+      const allQuestions = await rest(`/questions?select=id,quiz_ids`);
+      const ids = (allQuestions || [])
+        .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quizId))
+        .map((q: any) => q.id);
+      const quizPayload = { ...mapQuiz(quiz, []), questions: ids };
 
       // Find existing session (unique per user+quiz)
       const existingSessions = await rest(
@@ -1225,6 +1230,14 @@ Deno.serve(async (req) => {
     if (resultsByQuiz) {
       const quizId = resultsByQuiz[1];
       if (req.method === "GET") {
+        const auth = await authenticateRequest(req);
+        let isAdmin = false;
+        if (auth) {
+          try {
+            const u = await fetchUser(auth.userId);
+            isAdmin = !!u?.is_admin;
+          } catch {}
+        }
         const list = await rest(
           `/quiz_sessions?select=*&quiz_id=eq.${quizId}&completed_at=not.is.null&order=score.desc,started_at.asc`
         );
@@ -1248,6 +1261,7 @@ Deno.serve(async (req) => {
               )
             ),
             completedAt: s.completed_at,
+            ...(isAdmin && user?.phone ? { phone: user.phone } : {}),
           });
         }
         return json(mapped);

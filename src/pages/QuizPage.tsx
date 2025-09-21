@@ -368,12 +368,7 @@ const QuizPage = () => {
   };
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-500/20 text-green-700 dark:text-green-300';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300';
-      case 'hard': return 'bg-red-500/20 text-red-700 dark:text-red-300';
-      default: return 'bg-muted/20 text-muted-foreground';
-    }
+    return 'bg-muted/20 text-muted-foreground';
   };
 
   if (isLoading) {
@@ -511,21 +506,6 @@ const QuizPage = () => {
             <div className="text-xs text-yellow-800 bg-yellow-100 rounded-md px-3 py-2">
               Do not refresh or close this page during the quiz. Your progress may be lost.
             </div>
-            {/* Category & Difficulty */}
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium">
-                {currentQuestion.category}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(currentQuestion.difficulty)}`}>
-                  {currentQuestion.difficulty.toUpperCase()}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  +{currentQuestion.positivePoints} / -{currentQuestion.negativePoints} pts • {currentQuestion.time}s
-                </span>
-              </div>
-            </div>
-
             {/* Question */}
             <h2 className="text-2xl font-bold leading-relaxed">
               {currentQuestion.question}

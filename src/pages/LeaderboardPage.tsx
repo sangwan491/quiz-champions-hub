@@ -78,6 +78,11 @@ const LeaderboardPage = () => {
                   : existing.playerName,
               // Sum total questions across attempts
               totalQuestions: existing.totalQuestions + r.totalQuestions,
+              // prefer phone if present on latest
+              phone:
+                new Date(r.completedAt) > new Date(existing.completedAt)
+                  ? r.phone || existing.phone
+                  : existing.phone || r.phone,
               count: existing.count + 1,
             };
             byUser.set(key, aggregated);
@@ -338,6 +343,9 @@ const LeaderboardPage = () => {
                         </h3>
                         <div className="text-sm text-muted-foreground">
                           <p>{formatDate(result.completedAt)}</p>
+                          {result.phone ? (
+                            <p className="text-xs">📞 {result.phone}</p>
+                          ) : null}
                           {selectedQuizId === 'all' ? (
                             <p className="text-xs">{attemptCounts[result.userId] || 1} quizzes</p>
                           ) : null}

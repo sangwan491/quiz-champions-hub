@@ -3,8 +3,6 @@ export interface Question {
   question: string;
   options: string[];
   correctAnswer?: number;
-  category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
   positivePoints: number; // points awarded for correct answer
   negativePoints: number; // points deducted for incorrect answer
   time: number; // per-question time in seconds
@@ -19,7 +17,8 @@ export interface Quiz {
   totalTime: number; // aggregate of question times
   totalQuestions: number; // aggregate of attached questions
   createdAt: string;
-  questions: Question[];
+  // Backend now returns questions as IDs only at some endpoints; keep union
+  questions: Array<Question | string>;
 }
 
 export interface User {
@@ -335,19 +334,21 @@ export const api = {
 export type ShuffledQuiz = Quiz & { shuffleMap: Array<{ questionId: string; optionIndexMap: number[] }>; questionOrder: string[] };
 
 export function shuffleQuizForClient(quiz: Quiz): ShuffledQuiz {
-  const questionOrder = [...quiz.questions.map(q => q.id)];
+  const questionOrder = [...quiz.questions.map(q => (typeof q === 'string' ? q : q.id))];
   // Shuffle questions
   for (let i = questionOrder.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [questionOrder[i], questionOrder[j]] = [questionOrder[j], questionOrder[i]];
   }
-  const idToQuestion = new Map(quiz.questions.map(q => [q.id, q] as const));
+  const idToQuestion = new Map(quiz.questions.map(q => [typeof q === 'string' ? q : q.id, q] as const));
 
   const shuffledQuestions: Question[] = [];
   const shuffleMap: Array<{ questionId: string; optionIndexMap: number[] }> = [];
 
   for (const qid of questionOrder) {
-    const q = idToQuestion.get(qid)!;
+    const qObj = idToQuestion.get(qid)!;
+    const q = typeof qObj === 'string' ? undefined : qObj;
+    if (!q) continue;
     const optionIndexMap = q.options.map((_, idx) => idx);
     // Shuffle options
     for (let i = optionIndexMap.length - 1; i > 0; i--) {
@@ -356,7 +357,7 @@ export function shuffleQuizForClient(quiz: Quiz): ShuffledQuiz {
     }
     const shuffledOptions = optionIndexMap.map(idx => q.options[idx]);
     shuffledQuestions.push({ ...q, options: shuffledOptions });
-    shuffleMap.push({ questionId: q.id, optionIndexMap });
+    shuffleMap.push({ questionId: typeof q === 'string' ? q : q.id, optionIndexMap });
   }
 
   return {
@@ -388,8 +389,6 @@ export const sampleQuestions: Question[] = [
     question: "What is the capital of Japan?",
     options: ["Tokyo", "Osaka", "Kyoto", "Hiroshima"],
     correctAnswer: 0,
-    category: "Geography",
-    difficulty: "easy",
     positivePoints: 10,
     negativePoints: 2,
     time: 30,
@@ -399,8 +398,6 @@ export const sampleQuestions: Question[] = [
     question: "Which programming language was created by Brendan Eich?",
     options: ["Python", "JavaScript", "Java", "C++"],
     correctAnswer: 1,
-    category: "Technology",
-    difficulty: "medium",
     positivePoints: 20,
     negativePoints: 5,
     time: 30,

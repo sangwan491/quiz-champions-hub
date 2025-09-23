@@ -252,13 +252,9 @@ const AdminPage = () => {
         toast({ title: "Success", description: "Question added successfully" });
       }
 
-      // Refresh quiz data while preserving selection
-      const updatedQuizzes = await api.getQuizzes();
-      setQuizzes(updatedQuizzes);
-      const nextSel = updatedQuizzes.find(q => q.id === selectedQuiz.id) || null;
-      setSelectedQuiz(nextSel);
-      if (nextSel) localStorage.setItem("adminSelectedQuizId", nextSel.id);
-      
+      // Refresh all admin data (quizzes + question bank) while preserving selection
+      localStorage.setItem("adminSelectedQuizId", selectedQuiz.id);
+      await loadData();
       cancelQuestionEdit();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save question", variant: "destructive" });
@@ -271,12 +267,9 @@ const AdminPage = () => {
     try {
       await api.deleteQuestion(selectedQuiz.id, questionId);
       
-      // Refresh quiz data
-      const updatedQuizzes = await api.getQuizzes();
-      setQuizzes(updatedQuizzes);
-      const nextSel = updatedQuizzes.find(q => q.id === selectedQuiz.id) || null;
-      setSelectedQuiz(nextSel);
-      if (nextSel) localStorage.setItem("adminSelectedQuizId", nextSel.id);
+      // Refresh all admin data (quizzes + question bank) while preserving selection
+      localStorage.setItem("adminSelectedQuizId", selectedQuiz.id);
+      await loadData();
       
       toast({ title: "Success", description: "Question deleted successfully" });
     } catch (error) {
@@ -867,7 +860,7 @@ const AdminPage = () => {
 
                 <div className="grid gap-3">
                   {filteredBank.map((q) => {
-                    const attached = selectedQuiz.questions.some(sq => sq.id === q.id);
+                    const attached = selectedQuiz.questions.some((sq) => (typeof sq === 'string' ? sq : sq.id) === q.id);
                     return (
                       <div key={q.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>

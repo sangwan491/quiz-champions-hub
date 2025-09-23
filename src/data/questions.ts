@@ -78,6 +78,41 @@ export const auth = {
   }
 };
 
+// --- Global 401 handling ---
+function handleUnauthorized() {
+  try {
+    const prev = localStorage.getItem('currentUser');
+    auth.clearToken();
+    try {
+      // Trigger storage listeners for same-tab updates
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'currentUser',
+        oldValue: prev,
+        newValue: null,
+        url: window.location.href
+      }));
+    } catch {}
+    // Custom immediate update event
+    window.dispatchEvent(new CustomEvent('userStateChanged'));
+  } catch {}
+  // Redirect to login/home
+  window.location.href = '/';
+}
+
+async function fetchJson<T = any>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Authentication required');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({} as any));
+    const message = (err && (err.error || err.message)) || `Request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   // Auth endpoints
   registerUser: async (user: { name: string; linkedinProfile?: string; email?: string; phone: string }): Promise<User> => {
@@ -131,6 +166,10 @@ export const api = {
     const response = await fetch(`${API_BASE}/admin/me`, {
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      return { isAdmin: false };
+    }
     if (!response.ok) {
       return { isAdmin: false };
     }
@@ -138,12 +177,11 @@ export const api = {
   },
 
   seedAdmin: async (payload?: { name?: string; email?: string; phone?: string; password?: string }): Promise<any> => {
-    const response = await fetch(`${API_BASE}/admin/seed`, {
+    return fetchJson(`${API_BASE}/admin/seed`, {
       method: 'POST',
       headers: auth.getHeaders(),
       body: JSON.stringify(payload || {}),
     });
-    return response.json();
   },
 
   // Quiz management
@@ -153,28 +191,31 @@ export const api = {
   },
 
   createQuiz: async (quiz: { title: string; description?: string; questionIds?: string[] }): Promise<Quiz> => {
-    const response = await fetch(`${API_BASE}/quizzes`, {
+    return fetchJson(`${API_BASE}/quizzes`, {
       method: 'POST',
       headers: auth.getHeaders(),
       body: JSON.stringify(quiz),
     });
-    return response.json();
   },
 
   updateQuiz: async (id: string, quiz: Partial<Pick<Quiz, 'title' | 'description' | 'status'>>): Promise<Quiz> => {
-    const response = await fetch(`${API_BASE}/quizzes/${id}`, {
+    return fetchJson(`${API_BASE}/quizzes/${id}`, {
       method: 'PUT',
       headers: auth.getHeaders(),
       body: JSON.stringify(quiz),
     });
-    return response.json();
   },
 
   deleteQuiz: async (id: string): Promise<void> => {
-    await fetch(`${API_BASE}/quizzes/${id}`, {
+    const response = await fetch(`${API_BASE}/quizzes/${id}`, {
       method: 'DELETE',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to delete quiz');
   },
 
   // Question bank
@@ -184,123 +225,130 @@ export const api = {
   },
 
   createQuestion: async (question: Partial<Question> & { quizIds?: string[] }): Promise<Question> => {
-    const response = await fetch(`${API_BASE}/questions`, {
+    return fetchJson(`${API_BASE}/questions`, {
       method: 'POST',
       headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
-    return response.json();
   },
 
   updateQuestionBank: async (questionId: string, question: Partial<Question> & { quizIds?: string[] }): Promise<Question> => {
-    const response = await fetch(`${API_BASE}/questions/${questionId}`, {
+    return fetchJson(`${API_BASE}/questions/${questionId}`, {
       method: 'PUT',
       headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
-    return response.json();
   },
 
   attachQuestionToQuiz: async (quizId: string, questionId: string): Promise<void> => {
-    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/attach`, {
+    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/attach`, {
       method: 'POST',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to attach question');
   },
 
   detachQuestionFromQuiz: async (quizId: string, questionId: string): Promise<void> => {
-    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/detach`, {
+    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}/detach`, {
       method: 'POST',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to detach question');
   },
 
   // Question management for creating directly under a quiz
   addQuestion: async (quizId: string, question: Partial<Question>): Promise<Question> => {
-    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions`, {
+    return fetchJson(`${API_BASE}/quizzes/${quizId}/questions`, {
       method: 'POST',
       headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
-    return response.json();
   },
 
   updateQuestion: async (quizId: string, questionId: string, question: Partial<Question>): Promise<Question> => {
-    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
+    return fetchJson(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
       method: 'PUT',
       headers: auth.getHeaders(),
       body: JSON.stringify(question),
     });
-    return response.json();
   },
 
   deleteQuestion: async (quizId: string, questionId: string): Promise<void> => {
-    await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
+    const response = await fetch(`${API_BASE}/quizzes/${quizId}/questions/${questionId}`, {
       method: 'DELETE',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to delete question');
   },
 
   // Results
   getResults: async (): Promise<QuizResult[]> => {
-    const response = await fetch(`${API_BASE}/results`, {
+    return fetchJson(`${API_BASE}/results`, {
       headers: auth.getHeaders(),
     });
-    return response.json();
   },
 
   getQuizResults: async (quizId: string): Promise<QuizResult[]> => {
-    const response = await fetch(`${API_BASE}/results/${quizId}`, {
+    return fetchJson(`${API_BASE}/results/${quizId}`, {
       headers: auth.getHeaders(),
     });
-    return response.json();
   },
 
   // New: Combined quizzes (active + completed) for the user with attempt info
   getUserQuizzes: async (userId: string): Promise<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt'> & { hasAttempted: boolean }>> => {
-    const response = await fetch(`${API_BASE}/user/${userId}/quizzes`, {
+    return fetchJson(`${API_BASE}/user/${userId}/quizzes`, {
       headers: auth.getHeaders(),
     });
-    if (!response.ok) {
-      throw new Error('Failed to fetch user quizzes');
-    }
-    return response.json();
   },
 
   checkUserAttempt: async (userId: string, quizId: string): Promise<{ hasAttempted: boolean; attempt: QuizResult | null }> => {
-    const response = await fetch(`${API_BASE}/user/${userId}/attempts/${quizId}`, {
+    return fetchJson(`${API_BASE}/user/${userId}/attempts/${quizId}`, {
       headers: auth.getHeaders(),
     });
-    if (!response.ok) {
-      throw new Error('Failed to check user attempt');
-    }
-    return response.json();
   },
 
   submitResult: async (result: { userId: string; quizId: string; score?: number; totalQuestions?: number; answers?: Array<{ questionId: string; selectedAnswer: number | null }> }): Promise<QuizResult> => {
-    const response = await fetch(`${API_BASE}/results`, {
+    return fetchJson(`${API_BASE}/results`, {
       method: 'POST',
       headers: auth.getHeaders(),
       body: JSON.stringify(result),
     });
-    if (!response.ok) {
-      throw new Error('Failed to submit result');
-    }
-    return response.json();
   },
 
   resetLeaderboard: async (): Promise<void> => {
-    await fetch(`${API_BASE}/results`, {
+    const response = await fetch(`${API_BASE}/results`, {
       method: 'DELETE',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to reset leaderboard');
   },
 
   resetQuizLeaderboard: async (quizId: string): Promise<void> => {
-    await fetch(`${API_BASE}/results/${quizId}`, {
+    const response = await fetch(`${API_BASE}/results/${quizId}`, {
       method: 'DELETE',
       headers: auth.getHeaders(),
     });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to reset quiz leaderboard');
   },
 
   // Get active quiz for players
@@ -317,16 +365,10 @@ export const api = {
 
   // Start quiz session (server-side timing) and get quiz payload
   startQuiz: async (quizId: string): Promise<{ sessionId: string; startedAt: string; message: string; quiz: Quiz }> => {
-    const response = await fetch(`${API_BASE}/quiz/${quizId}/start`, {
+    return fetchJson(`${API_BASE}/quiz/${quizId}/start`, {
       method: 'POST',
       headers: auth.getHeaders(),
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const message = err?.error || `Failed to start quiz (${response.status})`;
-      throw new Error(message);
-    }
-    return response.json();
   },
 };
 
@@ -398,10 +440,10 @@ export const sampleQuestions: Question[] = [
     question: "Which programming language was created by Brendan Eich?",
     options: ["Python", "JavaScript", "Java", "C++"],
     correctAnswer: 1,
-    positivePoints: 20,
-    negativePoints: 5,
+    positivePoints: 10,
+    negativePoints: 2,
     time: 30,
-  }
+  },
 ];
 
 export const sampleLeaderboard: QuizResult[] = [];

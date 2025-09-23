@@ -1202,7 +1202,9 @@ Deno.serve(async (req) => {
             quizId: body.quizId,
             playerName: user.name,
             score: final,
-            totalQuestions: Number(quiz.total_questions ?? totalQuestions),
+            totalQuestions: Array.isArray(body.answers)
+              ? body.answers.filter((a: any) => a && a.selectedAnswer !== null && a.selectedAnswer !== undefined).length
+              : 0,
             timeSpent: timeSpentCapped,
             completedAt: completedAtIso,
             percentage,

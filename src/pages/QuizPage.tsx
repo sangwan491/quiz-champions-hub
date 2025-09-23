@@ -77,7 +77,7 @@ const QuizPage = () => {
   const getMaxTime = (qz: ShuffledQuiz) => {
     const total = Number(qz.totalTime || 0);
     if (total && total > 0) return total;
-    return (qz.questions || []).reduce((sum, q) => sum + Number(q.time || 0), 0);
+    return (qz.questions || []).reduce((sum, q) => sum + Number((q as Question).time || 0), 0);
   };
 
   const initializeQuiz = async () => {
@@ -135,6 +135,23 @@ const QuizPage = () => {
       setSessionId(started.sessionId);
       setSessionStartedAt(started.startedAt);
 
+      // Hydrate questions if server returned only IDs
+      let hydratedQuiz: Quiz = started.quiz as Quiz;
+      try {
+        const anyQuestions = Array.isArray(hydratedQuiz.questions) ? hydratedQuiz.questions : [];
+        const areIdsOnly = anyQuestions.length > 0 && typeof anyQuestions[0] === 'string';
+        if (areIdsOnly) {
+          const bank = await api.getQuestionBank();
+          const idToQuestion = new Map(bank.map((q) => [q.id, q] as const));
+          const fullQuestions: Question[] = (anyQuestions as string[])
+            .map((id) => idToQuestion.get(id))
+            .filter(Boolean) as Question[];
+          hydratedQuiz = { ...hydratedQuiz, questions: fullQuestions } as Quiz;
+        }
+      } catch (e) {
+        console.warn('Failed to hydrate questions from bank', e);
+      }
+
       const key = makeProgressKey(userData.id, quizData.id);
       const savedRaw = localStorage.getItem(key);
 
@@ -164,7 +181,7 @@ const QuizPage = () => {
 
             // Fast-forward by time elapsed since last tick
             let idx = saved.currentQuestionIndex || 0;
-            let tLeft = saved.timeLeft ?? (savedQuiz.questions?.[idx]?.time || 30);
+            let tLeft = saved.timeLeft ?? ((savedQuiz.questions?.[idx] as Question)?.time || 30);
             let updatedAnswers = Array.isArray(saved.answers) ? [...saved.answers] : [];
             let delta = Math.max(0, Math.floor((Date.now() - (saved.lastTickAt || Date.now())) / 1000));
             const total = savedQuiz.questions.length;
@@ -178,11 +195,11 @@ const QuizPage = () => {
               // Current question elapsed
               delta -= tLeft;
               if (!updatedAnswers[idx]) {
-                updatedAnswers[idx] = { questionId: savedQuiz.questions[idx].id, selectedAnswer: null };
+                updatedAnswers[idx] = { questionId: (savedQuiz.questions[idx] as Question).id, selectedAnswer: null };
               }
               idx += 1;
               if (idx >= total) break;
-              tLeft = savedQuiz.questions[idx].time || 30;
+              tLeft = (savedQuiz.questions[idx] as Question).time || 30;
             }
 
             if (idx >= total) {
@@ -212,9 +229,14 @@ const QuizPage = () => {
       }
 
       // No valid saved progress -> start fresh and shuffle
-      const shuffled = shuffleQuizForClient(started.quiz);
+      const shuffled = shuffleQuizForClient(hydratedQuiz);
+      if (!shuffled.questions || shuffled.questions.length === 0) {
+        toast({ title: "Error", description: "No questions found for this quiz.", variant: "destructive" });
+        navigate("/");
+        return;
+      }
       setQuiz(shuffled);
-      const firstTime = shuffled.questions?.[0]?.time || 30;
+      const firstTime = (shuffled.questions?.[0] as Question)?.time || 30;
       setTimeLeft(firstTime);
       // Persist initial progress
       try {
@@ -246,7 +268,7 @@ const QuizPage = () => {
     }
   };
 
-  const currentQuestion = quiz?.questions[currentQuestionIndex];
+  const currentQuestion = (quiz?.questions[currentQuestionIndex] as Question | undefined);
   const progress = quiz ? ((currentQuestionIndex + 1) / quiz.questions.length) * 100 : 0;
 
   useEffect(() => {
@@ -299,7 +321,7 @@ const QuizPage = () => {
       setCurrentQuestionIndex(nextIdx);
       setSelectedAnswer(null);
       setShowAnswer(false);
-      setTimeLeft(quiz.questions[nextIdx].time || 30);
+      setTimeLeft((quiz.questions[nextIdx] as Question).time || 30);
     }
   };
 
@@ -458,7 +480,7 @@ const QuizPage = () => {
                     fill="none"
                     stroke={timeLeft <= 10 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
                     strokeWidth="3"
-                    strokeDasharray={`${(timeLeft / (currentQuestion?.time || 30)) * 100}, 100`}
+                    strokeDasharray={`${(timeLeft / ((currentQuestion as Question)?.time || 30)) * 100}, 100`}
                     strokeLinecap="round"
                     className={`transition-all duration-1000 ${timeLeft <= 10 ? 'animate-pulse drop-shadow-lg' : ''}`}
                     style={{
@@ -500,20 +522,27 @@ const QuizPage = () => {
         </div>
 
         {/* Question Card */}
-        <Card key={currentQuestion.id} className="card-quiz animate-fade-in-up">
+        <Card key={(currentQuestion as Question).id} className="card-quiz animate-fade-in-up">
           <div className="space-y-6">
             {/* Warning Banner */}
             <div className="text-xs text-yellow-800 bg-yellow-100 rounded-md px-3 py-2">
               Do not refresh or close this page during the quiz. Your progress may be lost.
             </div>
+            <div className="flex items-center justify-end">
+              <span className="text-sm text-muted-foreground">
+                +{(currentQuestion as Question).positivePoints} / -{(currentQuestion as Question).negativePoints} pts • {(currentQuestion as Question).time}s
+              </span>
+            </div>
+
             {/* Question */}
             <h2 className="text-2xl font-bold leading-relaxed">
-              {currentQuestion.question}
+              {(currentQuestion as Question).question
+            }
             </h2>
 
             {/* Answer Options */}
             <div className="grid gap-4">
-              {currentQuestion.options.map((option, index) => (
+              {(currentQuestion as Question).options.map((option, index) => (
                 <button
                   key={index}
                   onClick={() => handleAnswerSelect(index)}

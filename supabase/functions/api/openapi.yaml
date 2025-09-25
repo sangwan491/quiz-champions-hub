@@ -265,7 +265,7 @@ paths:
   /questions:
     get:
       tags: [Questions]
-      summary: Question bank
+      summary: Question bank (Public)
       responses:
         '200':
           description: OK
@@ -316,7 +316,7 @@ paths:
   /quizzes:
     get:
       tags: [Quizzes]
-      summary: List quizzes with questions
+      summary: List quizzes with questions (Public)
       description: "Note: current implementation includes `correctAnswer` in questions."
       responses:
         '200':

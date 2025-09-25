@@ -492,6 +492,9 @@ Deno.serve(async (req) => {
     // Questions - bank
     if (path === "/api/questions") {
       if (req.method === "GET") {
+        // Admin only
+        const admin = await requireAdmin(req);
+        if (admin instanceof Response) return admin;
         const list = await rest(`/questions?select=*`);
         const mapped = (list || []).map((q: any) => ({
           id: q.id,
@@ -599,6 +602,9 @@ Deno.serve(async (req) => {
     // Quizzes list/create
     if (path === "/api/quizzes") {
       if (req.method === "GET") {
+        // Admin only
+        const admin = await requireAdmin(req);
+        if (admin instanceof Response) return admin;
         const quizzes = await rest(`/quizzes?select=*`);
         const mapped: any[] = [];
         for (const quiz of quizzes || []) {
@@ -815,6 +821,7 @@ Deno.serve(async (req) => {
     );
     if (questionDetailMatch) {
       const questionId = questionDetailMatch[2];
+      const quizId = questionDetailMatch[1];
       if (req.method === "PUT") {
         // Admin only
         const admin = await requireAdmin(req);

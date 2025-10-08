@@ -9,7 +9,7 @@ import UserRegistration from "@/components/UserRegistration";
 
 const HomePage = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [quizzes, setQuizzes] = useState<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt'> & { hasAttempted: boolean }>>([]);
+  const [quizzes, setQuizzes] = useState<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt' | 'scheduledAt'> & { hasAttempted: boolean }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -93,6 +93,20 @@ const HomePage = () => {
         variant: "destructive"
       });
       return;
+    }
+
+    // Enforce client-side gating too (server is authoritative)
+    if (quiz.scheduledAt) {
+      const now = Date.now();
+      const sched = new Date(quiz.scheduledAt).getTime();
+      if (!Number.isNaN(sched) && now < sched) {
+        toast({
+          title: "Not Started Yet",
+          description: `This quiz will start at ${new Date(sched).toLocaleString()}`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     if (quiz.status === 'completed' && !quiz.hasAttempted) {
@@ -214,16 +228,22 @@ const HomePage = () => {
                             <Clock className="w-4 h-4" />
                             <span>{Math.floor((quiz.totalTime || 0) / 60)}m {((quiz.totalTime || 0) % 60)}s total</span>
                           </div>
+                          {quiz.scheduledAt && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>Starts: {new Date(quiz.scheduledAt).toLocaleString()}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <Button
                         onClick={() => startQuiz(quiz)}
-                        disabled={quiz.hasAttempted}
+                        disabled={quiz.hasAttempted || (quiz.scheduledAt ? Date.now() < new Date(quiz.scheduledAt).getTime() : false)}
                         className="ml-4"
-                        variant={quiz.hasAttempted ? "secondary" : "default"}
+                        variant={quiz.hasAttempted ? "secondary" : ((quiz.scheduledAt && Date.now() < new Date(quiz.scheduledAt).getTime()) ? "outline" : "default")}
                       >
                         <Play className="w-4 h-4 mr-2" />
-                        {quiz.hasAttempted ? "Completed" : "Start Quiz"}
+                        {quiz.hasAttempted ? "Completed" : ((quiz.scheduledAt && Date.now() < new Date(quiz.scheduledAt).getTime()) ? "Scheduled" : "Start Quiz")}
                       </Button>
                     </div>
                   </Card>

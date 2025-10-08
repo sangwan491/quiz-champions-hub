@@ -17,6 +17,7 @@ export interface Quiz {
   totalTime: number; // aggregate of question times
   totalQuestions: number; // aggregate of attached questions
   createdAt: string;
+  scheduledAt?: string; // when set, quiz cannot be started before this time (ISO)
   // Backend now returns questions as IDs only at some endpoints; keep union
   questions: Array<Question | string>;
 }
@@ -199,7 +200,7 @@ export const api = {
     });
   },
 
-  updateQuiz: async (id: string, quiz: Partial<Pick<Quiz, 'title' | 'description' | 'status'>>): Promise<Quiz> => {
+  updateQuiz: async (id: string, quiz: Partial<Pick<Quiz, 'title' | 'description' | 'status' | 'scheduledAt'>>): Promise<Quiz> => {
     return fetchJson(`${API_BASE}/quizzes/${id}`, {
       method: 'PUT',
       headers: auth.getHeaders(),
@@ -309,7 +310,7 @@ export const api = {
   },
 
   // New: Combined quizzes (active + completed) for the user with attempt info
-  getUserQuizzes: async (userId: string): Promise<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt'> & { hasAttempted: boolean }>> => {
+  getUserQuizzes: async (userId: string): Promise<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt' | 'scheduledAt'> & { hasAttempted: boolean }>> => {
     return fetchJson(`${API_BASE}/user/${userId}/quizzes`, {
       headers: auth.getHeaders(),
     });

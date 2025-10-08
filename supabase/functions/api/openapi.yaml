@@ -99,6 +99,7 @@ components:
         totalTime: { type: integer }
         totalQuestions: { type: integer }
         createdAt: { type: string, format: date-time }
+        scheduledAt: { type: string, format: date-time, nullable: true }
         questions:
           type: array
           items: { $ref: '#/components/schemas/Question' }
@@ -344,6 +345,7 @@ paths:
                 questionIds:
                   type: array
                   items: { type: string }
+                scheduledAt: { type: string, format: date-time, nullable: true }
       responses:
         '201':
           description: Created
@@ -372,6 +374,7 @@ paths:
                 title: { type: string }
                 description: { type: string }
                 status: { type: string, enum: [active, inactive, completed] }
+                scheduledAt: { type: string, format: date-time, nullable: true }
       responses:
         '200':
           description: Updated
@@ -522,7 +525,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StartQuizResponse' }
-        '400': { description: Already completed or not active, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '400': { description: Already completed / not active / not yet scheduled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: Quiz not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 

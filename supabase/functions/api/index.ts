@@ -201,6 +201,7 @@ function mapQuiz(quiz: any, questions: any[] = []) {
     totalTime: Number(quiz.total_time || 0),
     totalQuestions: Number(quiz.total_questions || 0),
     createdAt: quiz.created_at,
+    scheduledAt: quiz.scheduled_at,
     questions,
   };
 }
@@ -636,6 +637,7 @@ Deno.serve(async (req) => {
           total_time: 0,
           total_questions: 0,
           created_at: new Date().toISOString(),
+          scheduled_at: body.scheduledAt || null,
         };
         await rest(`/quizzes`, {
           method: "POST",
@@ -684,6 +686,7 @@ Deno.serve(async (req) => {
         if (body.description !== undefined)
           updates.description = body.description;
         if (body.status !== undefined) updates.status = body.status;
+        if (body.scheduledAt !== undefined) updates.scheduled_at = body.scheduledAt;
         if (Object.keys(updates).length === 0)
           return json({ error: "No updates" }, { status: 400 });
         await rest(`/quizzes?id=eq.${quizId}`, {
@@ -878,6 +881,7 @@ Deno.serve(async (req) => {
         totalTime: Number(quiz.total_time || 0),
         totalQuestions: Number(quiz.total_questions || 0),
         createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at,
         questions: [],
       }));
       return json(mapped);
@@ -916,6 +920,7 @@ Deno.serve(async (req) => {
         totalTime: Number(quiz.total_time || 0),
         totalQuestions: Number(quiz.total_questions || 0),
         createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at,
         hasAttempted: attemptedByQuiz.get(quiz.id) === true,
       }));
 
@@ -935,6 +940,17 @@ Deno.serve(async (req) => {
       if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
       if (quiz.status !== "active")
         return json({ error: "Quiz is not active" }, { status: 400 });
+      // Enforce schedule gating: cannot start before scheduled_at (if set)
+      if (quiz.scheduled_at) {
+        const nowMs = Date.now();
+        const scheduledMs = new Date(quiz.scheduled_at).getTime();
+        if (!Number.isNaN(scheduledMs) && nowMs < scheduledMs) {
+          return json(
+            { error: "Quiz has not started yet", scheduledAt: quiz.scheduled_at },
+            { status: 400 }
+          );
+        }
+      }
 
       // Preload safe quiz payload without answers
       // Return only question IDs; frontend will join details from bank

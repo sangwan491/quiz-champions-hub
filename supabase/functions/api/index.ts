@@ -201,6 +201,7 @@ function mapQuiz(quiz: any, questions: any[] = []) {
     totalTime: Number(quiz.total_time || 0),
     totalQuestions: Number(quiz.total_questions || 0),
     createdAt: quiz.created_at,
+    scheduledAt: quiz.scheduled_at || null,
     questions,
   };
 }
@@ -636,6 +637,7 @@ Deno.serve(async (req) => {
           total_time: 0,
           total_questions: 0,
           created_at: new Date().toISOString(),
+          scheduled_at: null,
         };
         await rest(`/quizzes`, {
           method: "POST",
@@ -684,6 +686,8 @@ Deno.serve(async (req) => {
         if (body.description !== undefined)
           updates.description = body.description;
         if (body.status !== undefined) updates.status = body.status;
+        if (body.scheduledAt !== undefined)
+          updates.scheduled_at = body.scheduledAt || null;
         if (Object.keys(updates).length === 0)
           return json({ error: "No updates" }, { status: 400 });
         await rest(`/quizzes?id=eq.${quizId}`, {
@@ -878,6 +882,7 @@ Deno.serve(async (req) => {
         totalTime: Number(quiz.total_time || 0),
         totalQuestions: Number(quiz.total_questions || 0),
         createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at || null,
         questions: [],
       }));
       return json(mapped);
@@ -893,12 +898,13 @@ Deno.serve(async (req) => {
         return json({ error: "Cannot access another user's quizzes" }, { status: 403 });
       }
 
-      // Fetch active and completed quizzes
-      const [activeQuizzes, completedQuizzes] = await Promise.all([
+      // Fetch active, scheduled and completed quizzes
+      const [activeQuizzes, scheduledQuizzes, completedQuizzes] = await Promise.all([
         rest(`/quizzes?select=*&status=eq.active`),
+        rest(`/quizzes?select=*&status=eq.scheduled`),
         rest(`/quizzes?select=*&status=eq.completed`),
       ]);
-      const all = [...(activeQuizzes || []), ...(completedQuizzes || [])];
+      const all = [...(activeQuizzes || []), ...(scheduledQuizzes || []), ...(completedQuizzes || [])];
 
       // Fetch all sessions for this user once
       const sessions = await rest(`/quiz_sessions?select=*&user_id=eq.${userId}`);
@@ -916,6 +922,7 @@ Deno.serve(async (req) => {
         totalTime: Number(quiz.total_time || 0),
         totalQuestions: Number(quiz.total_questions || 0),
         createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at || null,
         hasAttempted: attemptedByQuiz.get(quiz.id) === true,
       }));
 
@@ -930,11 +937,24 @@ Deno.serve(async (req) => {
       if (!auth)
         return json({ error: "Authentication required" }, { status: 401 });
 
-      // Verify quiz exists and is active
+      // Verify quiz exists and is available to start
       const quiz = await fetchQuizRaw(quizId);
       if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-      if (quiz.status !== "active")
+      if (quiz.status === "inactive") {
         return json({ error: "Quiz is not active" }, { status: 400 });
+      }
+      if (quiz.status === "completed") {
+        return json({ error: "Quiz has ended" }, { status: 400 });
+      }
+      if (quiz.status === "scheduled") {
+        const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
+        if (!schedAt || Date.now() < schedAt.getTime()) {
+          return json(
+            { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
+            { status: 400 }
+          );
+        }
+      }
 
       // Preload safe quiz payload without answers
       // Return full questions (no correctAnswer) so frontend doesn't call bank
@@ -1086,8 +1106,19 @@ Deno.serve(async (req) => {
 
         const quiz = await fetchQuizRaw(body.quizId);
         if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-        if (quiz.status !== "active")
+        if (quiz.status === "inactive")
           return json({ error: "Quiz is not active" }, { status: 400 });
+        if (quiz.status === "completed")
+          return json({ error: "Quiz has ended" }, { status: 400 });
+        if (quiz.status === "scheduled") {
+          const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
+          if (!schedAt || Date.now() < schedAt.getTime()) {
+            return json(
+              { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
+              { status: 400 }
+            );
+          }
+        }
 
         // Find unique session - REQUIRED to exist (user must have started)
         const sessions = await rest(

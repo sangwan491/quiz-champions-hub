@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X, RotateCcw, Clock, Users, ToggleLeft, ToggleRight, Link as LinkIcon, Unlink } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, RotateCcw, Clock, Users, ToggleLeft, ToggleRight, Link as LinkIcon, Unlink, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,60 @@ import { useToast } from "@/hooks/use-toast";
 import { api, auth, type Question, type Quiz, type QuizResult } from "@/data/questions";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+// Small helper to schedule a quiz via datetime-local picker
+function ScheduleButton({ onSchedule, current }: { onSchedule: (iso: string) => void; current?: string }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState<string>(() => {
+    if (!current) return "";
+    try {
+      const d = new Date(current);
+      // to yyyy-MM-ddTHH:mm for datetime-local
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return "";
+    }
+  });
+
+  const schedule = () => {
+    if (!value) return;
+    try {
+      const iso = new Date(value).toISOString();
+      onSchedule(iso);
+      setOpen(false);
+    } catch {}
+  };
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)} type="button">
+        <CalendarClock className="w-4 h-4 mr-1" /> Schedule
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule Quiz Start Time</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="schedule-dt">Start at</Label>
+              <Input id="schedule-dt" type="datetime-local" value={value} onChange={(e) => setValue(e.target.value)} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-1">Users will only be able to start the quiz after this time.</p>
+            </div>
+            {current ? (
+              <p className="text-xs text-muted-foreground">Current: {new Date(current).toLocaleString()}</p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={schedule} disabled={!value} type="button"><Save className="w-4 h-4 mr-2" /> Schedule</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} type="button">Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 const AdminPage = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -278,15 +332,22 @@ const AdminPage = () => {
   };
 
   // Quiz Status Management
-  const setQuizStatus = async (status: Quiz["status"]) => {
+  const setQuizStatus = async (status: Quiz["status"] | 'scheduled', scheduledAt?: string | null) => {
     if (!selectedQuiz) return;
     try {
-      const updated = await api.updateQuiz(selectedQuiz.id, { status });
+      const payload: any = { status };
+      if (status === 'scheduled') {
+        payload.scheduledAt = scheduledAt || null;
+      }
+      const updated = await api.updateQuiz(selectedQuiz.id, payload);
       const updatedQuizzes = quizzes.map(q => q.id === updated.id ? updated : q);
       setQuizzes(updatedQuizzes);
       setSelectedQuiz(updated);
       localStorage.setItem("adminSelectedQuizId", updated.id);
-      toast({ title: "Updated", description: `Quiz set to ${status}` });
+      const desc = status === 'scheduled' && (scheduledAt || updated.scheduledAt)
+        ? `Quiz scheduled for ${new Date(scheduledAt || (updated as any).scheduledAt as string).toLocaleString()}`
+        : `Quiz set to ${status}`;
+      toast({ title: "Updated", description: desc });
     } catch (e) {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     }
@@ -981,7 +1042,7 @@ const AdminPage = () => {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-xl font-semibold">{selectedQuiz.title}</h3>
-                    <p className="text-muted-foreground">Current status: {selectedQuiz.status}</p>
+                    <p className="text-muted-foreground">Current status: {selectedQuiz.status}{selectedQuiz.status === 'scheduled' && selectedQuiz.scheduledAt ? ` • Starts at ${new Date(selectedQuiz.scheduledAt).toLocaleString()}` : ''}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant={selectedQuiz.status === 'active' ? 'default' : 'outline'} onClick={() => setQuizStatus('active')} type="button">
@@ -993,9 +1054,10 @@ const AdminPage = () => {
                     <Button variant={selectedQuiz.status === 'completed' ? 'default' : 'outline'} onClick={() => setQuizStatus('completed')} type="button">
                       <Clock className="w-4 h-4 mr-1" /> Completed
                     </Button>
+                    <ScheduleButton onSchedule={(iso) => setQuizStatus('scheduled', iso)} current={selectedQuiz.scheduledAt || ''} />
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Use these controls to publish your quiz or mark it as completed. Players will only see quizzes marked as Active.</p>
+                <p className="text-sm text-muted-foreground">Use these controls to publish, schedule, or mark a quiz as completed. Players can start only after the scheduled time.</p>
               </Card>
             ) : (
               <Card className="card-glass p-6 text-center">Select a quiz to manage its status.</Card>

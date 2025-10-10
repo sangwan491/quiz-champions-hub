@@ -9,7 +9,7 @@ import UserRegistration from "@/components/UserRegistration";
 
 const HomePage = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [quizzes, setQuizzes] = useState<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt'> & { hasAttempted: boolean }>>([]);
+  const [quizzes, setQuizzes] = useState<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt' | 'scheduledAt'> & { hasAttempted: boolean }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,11 +49,16 @@ const HomePage = () => {
       setIsLoading(true);
       if (!user) return;
       const list = await api.getUserQuizzes(user.id);
-      // Sort active first, then completed
+      // Sort: active → scheduled (soonest first) → completed
       const sorted = list.sort((a, b) => {
-        const rank = (s: string) => (s === 'active' ? 0 : s === 'completed' ? 1 : 2);
+        const rank = (s: string) => (s === 'active' ? 0 : s === 'scheduled' ? 1 : s === 'completed' ? 2 : 3);
         const r = rank(a.status) - rank(b.status);
         if (r !== 0) return r;
+        if (a.status === 'scheduled' && b.status === 'scheduled') {
+          const at = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const bt = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          if (at !== bt) return at - bt;
+        }
         return a.title.localeCompare(b.title);
       });
       setQuizzes(sorted);
@@ -113,10 +118,20 @@ const HomePage = () => {
       return;
     }
 
+    // If scheduled and not yet started, prevent start
+    if (quiz.status === 'scheduled') {
+      const now = Date.now();
+      const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
+      if (!Number.isNaN(schedMs) && now < schedMs) {
+        toast({ title: "Scheduled", description: `Starts at ${new Date(schedMs).toLocaleString()}`, variant: "destructive" });
+        return;
+      }
+    }
+
     // Store current user and quiz info for the quiz session (metadata only)
     localStorage.setItem("playerName", user.name);
     localStorage.setItem("currentUser", JSON.stringify(user));
-    localStorage.setItem("currentQuiz", JSON.stringify({ id: quiz.id, title: quiz.title }));
+    localStorage.setItem("currentQuiz", JSON.stringify({ id: quiz.id, title: quiz.title, scheduledAt: quiz.scheduledAt || null }));
     
     navigate("/quiz");
   };
@@ -145,6 +160,7 @@ const HomePage = () => {
   ];
 
   const active = quizzes.filter(q => q.status === 'active');
+  const scheduled = quizzes.filter(q => q.status === 'scheduled');
   const completed = quizzes.filter(q => q.status === 'completed');
 
   return (
@@ -180,7 +196,7 @@ const HomePage = () => {
             </p>
             
             {/* Loading State */}
-            {isLoading ? (
+              {isLoading ? (
               <div className="text-center animate-fade-in-up [animation-delay:0.4s]">
                 <div className="inline-flex items-center px-6 py-3 bg-card/70 backdrop-blur-sm rounded-full border border-border/50">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-3"></div>
@@ -189,6 +205,55 @@ const HomePage = () => {
               </div>
             ) : (
               <div className="max-w-2xl mx-auto mb-8 space-y-4 animate-fade-in-up [animation-delay:0.4s]">
+                {scheduled.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-1 text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      Scheduled Quizzes
+                    </div>
+                    {scheduled.map((quiz) => {
+                      const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
+                      const notStarted = !Number.isNaN(schedMs) && Date.now() < schedMs;
+                      return (
+                        <Card key={quiz.id} className="card-glass p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                                <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
+                                  <Clock className="w-3 h-3" />
+                                  Scheduled
+                                </div>
+                              </div>
+                              {quiz.description && (
+                                <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
+                              )}
+                              <div className="flex gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  <span>{quiz.totalQuestions} Questions</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>Starts at {quiz.scheduledAt ? new Date(quiz.scheduledAt).toLocaleString() : 'TBA'}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => startQuiz(quiz)}
+                              disabled={quiz.hasAttempted || notStarted}
+                              className="ml-4"
+                              variant={notStarted ? "outline" : (quiz.hasAttempted ? "secondary" : "default")}
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              {notStarted ? "Starts Soon" : (quiz.hasAttempted ? "Completed" : "Start Quiz")}
+                            </Button>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
                 {active.map((quiz) => (
                   <Card key={quiz.id} className="card-glass p-6">
                     <div className="flex items-center justify-between">

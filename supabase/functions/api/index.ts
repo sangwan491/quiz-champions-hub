@@ -937,12 +937,18 @@ Deno.serve(async (req) => {
         return json({ error: "Quiz is not active" }, { status: 400 });
 
       // Preload safe quiz payload without answers
-      // Return only question IDs; frontend will join details from bank
-      const allQuestions = await rest(`/questions?select=id,quiz_ids`);
-      const ids = (allQuestions || [])
-        .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quizId))
-        .map((q: any) => q.id);
-      const quizPayload = { ...mapQuiz(quiz, []), questions: ids };
+      // Return full questions (no correctAnswer) so frontend doesn't call bank
+      const rawQuestions = await fetchQuestionsForQuiz(quizId);
+      const safeQuestions = (rawQuestions || []).map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        options: Array.isArray(q.options) ? q.options : [],
+        positivePoints: Number(q.positivePoints || 0),
+        negativePoints: Number(q.negativePoints || 0),
+        time: Number(q.time || 0),
+        quizIds: Array.isArray(q.quizIds) ? q.quizIds : [],
+      }));
+      const quizPayload = { ...mapQuiz(quiz, []), questions: safeQuestions };
 
       // Find existing session (unique per user+quiz)
       const existingSessions = await rest(

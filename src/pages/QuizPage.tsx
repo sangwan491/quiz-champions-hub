@@ -135,22 +135,8 @@ const QuizPage = () => {
       setSessionId(started.sessionId);
       setSessionStartedAt(started.startedAt);
 
-      // Hydrate questions if server returned only IDs
+      // Server now returns sanitized questions; no hydration from bank
       let hydratedQuiz: Quiz = started.quiz as Quiz;
-      try {
-        const anyQuestions = Array.isArray(hydratedQuiz.questions) ? hydratedQuiz.questions : [];
-        const areIdsOnly = anyQuestions.length > 0 && typeof anyQuestions[0] === 'string';
-        if (areIdsOnly) {
-          const bank = await api.getQuestionBank();
-          const idToQuestion = new Map(bank.map((q) => [q.id, q] as const));
-          const fullQuestions: Question[] = (anyQuestions as string[])
-            .map((id) => idToQuestion.get(id))
-            .filter(Boolean) as Question[];
-          hydratedQuiz = { ...hydratedQuiz, questions: fullQuestions } as Quiz;
-        }
-      } catch (e) {
-        console.warn('Failed to hydrate questions from bank', e);
-      }
 
       const key = makeProgressKey(userData.id, quizData.id);
       const savedRaw = localStorage.getItem(key);

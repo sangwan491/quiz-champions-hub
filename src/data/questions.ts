@@ -186,8 +186,9 @@ export const api = {
 
   // Quiz management
   getQuizzes: async (): Promise<Quiz[]> => {
-    const response = await fetch(`${API_BASE}/quizzes`);
-    return response.json();
+    return fetchJson(`${API_BASE}/quizzes`, {
+      headers: auth.getHeaders(),
+    });
   },
 
   createQuiz: async (quiz: { title: string; description?: string; questionIds?: string[] }): Promise<Quiz> => {
@@ -220,8 +221,9 @@ export const api = {
 
   // Question bank
   getQuestionBank: async (): Promise<Question[]> => {
-    const response = await fetch(`${API_BASE}/questions`);
-    return response.json();
+    return fetchJson(`${API_BASE}/questions`, {
+      headers: auth.getHeaders(),
+    });
   },
 
   createQuestion: async (question: Partial<Question> & { quizIds?: string[] }): Promise<Question> => {

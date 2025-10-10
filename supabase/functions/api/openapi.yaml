@@ -265,7 +265,9 @@ paths:
   /questions:
     get:
       tags: [Questions]
-      summary: Question bank (Public)
+      summary: Question bank
+      description: Admin-only
+      security: [{ bearerAuth: [] }]
       responses:
         '200':
           description: OK

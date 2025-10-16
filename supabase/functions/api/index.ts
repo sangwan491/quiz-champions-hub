@@ -177,8 +177,6 @@ function mapQuestion(q: any) {
     question: q.question,
     options: safeParse<string[]>(q.options, []),
     correctAnswer: q.correct_answer,
-    category: q.category || "",
-    difficulty: q.difficulty,
     positivePoints: Number(q.positive_points || 10),
     negativePoints: Number(q.negative_points || 0),
     time: Number(q.time),
@@ -203,6 +201,7 @@ function mapQuiz(quiz: any, questions: any[] = []) {
     totalTime: Number(quiz.total_time || 0),
     totalQuestions: Number(quiz.total_questions || 0),
     createdAt: quiz.created_at,
+    scheduledAt: quiz.scheduled_at || null,
     questions,
   };
 }
@@ -494,14 +493,15 @@ Deno.serve(async (req) => {
     // Questions - bank
     if (path === "/api/questions") {
       if (req.method === "GET") {
+        // Admin only
+        const admin = await requireAdmin(req);
+        if (admin instanceof Response) return admin;
         const list = await rest(`/questions?select=*`);
         const mapped = (list || []).map((q: any) => ({
           id: q.id,
           question: q.question,
           options: safeParse<string[]>(q.options, []),
           correctAnswer: q.correct_answer,
-          category: q.category || "",
-          difficulty: q.difficulty,
           positivePoints: Number(q.positive_points || 10),
           negativePoints: Number(q.negative_points || 0),
           time: Number(q.time),
@@ -519,8 +519,6 @@ Deno.serve(async (req) => {
           question: body.question,
           options: JSON.stringify(body.options || []),
           correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || "easy",
           positive_points: body.positivePoints ?? 10,
           negative_points: body.negativePoints ?? 0,
           time: body.time ?? 30,
@@ -559,8 +557,7 @@ Deno.serve(async (req) => {
           updates.options = JSON.stringify(body.options);
         if (body.correctAnswer !== undefined)
           updates.correct_answer = body.correctAnswer;
-        if (body.category !== undefined) updates.category = body.category;
-        if (body.difficulty !== undefined) updates.difficulty = body.difficulty;
+
         if (body.positivePoints !== undefined)
           updates.positive_points = body.positivePoints;
         if (body.negativePoints !== undefined)
@@ -606,11 +603,21 @@ Deno.serve(async (req) => {
     // Quizzes list/create
     if (path === "/api/quizzes") {
       if (req.method === "GET") {
+        // Admin only
+        const admin = await requireAdmin(req);
+        if (admin instanceof Response) return admin;
         const quizzes = await rest(`/quizzes?select=*`);
         const mapped: any[] = [];
         for (const quiz of quizzes || []) {
-          const questions = await fetchQuestionsForQuiz(quiz.id);
-          mapped.push(mapQuiz(quiz, questions));
+                  // Return only question IDs; frontend will join details from bank
+        const allQuestions = await rest(`/questions?select=id,quiz_ids`);
+        const ids = (allQuestions || [])
+          .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quiz.id))
+          .map((q: any) => q.id);
+        mapped.push({
+          ...mapQuiz(quiz, []),
+          questions: ids,
+        });
         }
         return json(mapped);
       }
@@ -630,6 +637,7 @@ Deno.serve(async (req) => {
           total_time: 0,
           total_questions: 0,
           created_at: new Date().toISOString(),
+          scheduled_at: null,
         };
         await rest(`/quizzes`, {
           method: "POST",
@@ -678,6 +686,8 @@ Deno.serve(async (req) => {
         if (body.description !== undefined)
           updates.description = body.description;
         if (body.status !== undefined) updates.status = body.status;
+        if (body.scheduledAt !== undefined)
+          updates.scheduled_at = body.scheduledAt || null;
         if (Object.keys(updates).length === 0)
           return json({ error: "No updates" }, { status: 400 });
         await rest(`/quizzes?id=eq.${quizId}`, {
@@ -687,8 +697,12 @@ Deno.serve(async (req) => {
         const quiz = await rest(`/quizzes?id=eq.${quizId}&select=*`);
         if (!quiz?.[0])
           return json({ error: "Quiz not found" }, { status: 404 });
-        const questions = await fetchQuestionsForQuiz(quizId);
-        const updated = mapQuiz(quiz[0], questions);
+        // Return only question IDs for updated quiz
+        const allQuestions = await rest(`/questions?select=id,quiz_ids`);
+        const ids = (allQuestions || [])
+          .filter((q: any) => Array.isArray(q.quiz_ids) && q.quiz_ids.includes(quizId))
+          .map((q: any) => q.id);
+        const updated = { ...mapQuiz(quiz[0], []), questions: ids };
         return json(updated);
       }
       if (req.method === "DELETE") {
@@ -785,8 +799,6 @@ Deno.serve(async (req) => {
           question: body.question,
           options: JSON.stringify(body.options || []),
           correct_answer: body.correctAnswer,
-          category: body.category || null,
-          difficulty: body.difficulty || "easy",
           positive_points: body.positivePoints ?? 10,
           negative_points: body.negativePoints ?? 0,
           time: body.time ?? 30,
@@ -813,6 +825,7 @@ Deno.serve(async (req) => {
     );
     if (questionDetailMatch) {
       const questionId = questionDetailMatch[2];
+      const quizId = questionDetailMatch[1];
       if (req.method === "PUT") {
         // Admin only
         const admin = await requireAdmin(req);
@@ -869,8 +882,50 @@ Deno.serve(async (req) => {
         totalTime: Number(quiz.total_time || 0),
         totalQuestions: Number(quiz.total_questions || 0),
         createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at || null,
         questions: [],
       }));
+      return json(mapped);
+    }
+
+    // Combined user view: active + completed quizzes with attempt status
+    const userQuizzesMatch = path.match(/^\/api\/user\/([^\/]+)\/quizzes$/);
+    if (userQuizzesMatch && req.method === "GET") {
+      const userId = userQuizzesMatch[1];
+      const auth = await authenticateRequest(req);
+      if (!auth) return json({ error: "Authentication required" }, { status: 401 });
+      if (auth.userId !== userId) {
+        return json({ error: "Cannot access another user's quizzes" }, { status: 403 });
+      }
+
+      // Fetch active, scheduled and completed quizzes
+      const [activeQuizzes, scheduledQuizzes, completedQuizzes] = await Promise.all([
+        rest(`/quizzes?select=*&status=eq.active`),
+        rest(`/quizzes?select=*&status=eq.scheduled`),
+        rest(`/quizzes?select=*&status=eq.completed`),
+      ]);
+      const all = [...(activeQuizzes || []), ...(scheduledQuizzes || []), ...(completedQuizzes || [])];
+
+      // Fetch all sessions for this user once
+      const sessions = await rest(`/quiz_sessions?select=*&user_id=eq.${userId}`);
+      const attemptedByQuiz = new Map<string, boolean>();
+      for (const s of sessions || []) {
+        const attempted = !!s.completed_at;
+        if (attempted) attemptedByQuiz.set(s.quiz_id, true);
+      }
+
+      const mapped = all.map((quiz: any) => ({
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description || "",
+        status: quiz.status,
+        totalTime: Number(quiz.total_time || 0),
+        totalQuestions: Number(quiz.total_questions || 0),
+        createdAt: quiz.created_at,
+        scheduledAt: quiz.scheduled_at || null,
+        hasAttempted: attemptedByQuiz.get(quiz.id) === true,
+      }));
+
       return json(mapped);
     }
 
@@ -882,16 +937,38 @@ Deno.serve(async (req) => {
       if (!auth)
         return json({ error: "Authentication required" }, { status: 401 });
 
-      // Verify quiz exists and is active
+      // Verify quiz exists and is available to start
       const quiz = await fetchQuizRaw(quizId);
       if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-      if (quiz.status !== "active")
+      if (quiz.status === "inactive") {
         return json({ error: "Quiz is not active" }, { status: 400 });
+      }
+      if (quiz.status === "completed") {
+        return json({ error: "Quiz has ended" }, { status: 400 });
+      }
+      if (quiz.status === "scheduled") {
+        const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
+        if (!schedAt || Date.now() < schedAt.getTime()) {
+          return json(
+            { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
+            { status: 400 }
+          );
+        }
+      }
 
       // Preload safe quiz payload without answers
-      const questions = await fetchQuestionsForQuiz(quizId);
-      const safeQuestions = (questions || []).map(({ correctAnswer, ...rest }: any) => rest);
-      const quizPayload = mapQuiz(quiz, safeQuestions);
+      // Return full questions (no correctAnswer) so frontend doesn't call bank
+      const rawQuestions = await fetchQuestionsForQuiz(quizId);
+      const safeQuestions = (rawQuestions || []).map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        options: Array.isArray(q.options) ? q.options : [],
+        positivePoints: Number(q.positivePoints || 0),
+        negativePoints: Number(q.negativePoints || 0),
+        time: Number(q.time || 0),
+        quizIds: Array.isArray(q.quizIds) ? q.quizIds : [],
+      }));
+      const quizPayload = { ...mapQuiz(quiz, []), questions: safeQuestions };
 
       // Find existing session (unique per user+quiz)
       const existingSessions = await rest(
@@ -976,6 +1053,14 @@ Deno.serve(async (req) => {
     // Results list/create/reset
     if (path === "/api/results") {
       if (req.method === "GET") {
+        const auth = await authenticateRequest(req);
+        let isAdmin = false;
+        if (auth) {
+          try {
+            const u = await fetchUser(auth.userId);
+            isAdmin = !!u?.is_admin;
+          } catch {}
+        }
         const sessions = await rest(
           `/quiz_sessions?select=*&completed_at=not.is.null&order=completed_at.desc`
         );
@@ -999,6 +1084,7 @@ Deno.serve(async (req) => {
               )
             ),
             completedAt: s.completed_at,
+            ...(isAdmin && user?.phone ? { phone: user.phone } : {}),
           });
         }
         return json(mapped);
@@ -1020,8 +1106,19 @@ Deno.serve(async (req) => {
 
         const quiz = await fetchQuizRaw(body.quizId);
         if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-        if (quiz.status !== "active")
+        if (quiz.status === "inactive")
           return json({ error: "Quiz is not active" }, { status: 400 });
+        if (quiz.status === "completed")
+          return json({ error: "Quiz has ended" }, { status: 400 });
+        if (quiz.status === "scheduled") {
+          const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
+          if (!schedAt || Date.now() < schedAt.getTime()) {
+            return json(
+              { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
+              { status: 400 }
+            );
+          }
+        }
 
         // Find unique session - REQUIRED to exist (user must have started)
         const sessions = await rest(
@@ -1149,7 +1246,9 @@ Deno.serve(async (req) => {
             quizId: body.quizId,
             playerName: user.name,
             score: final,
-            totalQuestions: Number(quiz.total_questions ?? totalQuestions),
+            totalQuestions: Array.isArray(body.answers)
+              ? body.answers.filter((a: any) => a && a.selectedAnswer !== null && a.selectedAnswer !== undefined).length
+              : 0,
             timeSpent: timeSpentCapped,
             completedAt: completedAtIso,
             percentage,
@@ -1177,6 +1276,14 @@ Deno.serve(async (req) => {
     if (resultsByQuiz) {
       const quizId = resultsByQuiz[1];
       if (req.method === "GET") {
+        const auth = await authenticateRequest(req);
+        let isAdmin = false;
+        if (auth) {
+          try {
+            const u = await fetchUser(auth.userId);
+            isAdmin = !!u?.is_admin;
+          } catch {}
+        }
         const list = await rest(
           `/quiz_sessions?select=*&quiz_id=eq.${quizId}&completed_at=not.is.null&order=score.desc,started_at.asc`
         );
@@ -1200,6 +1307,7 @@ Deno.serve(async (req) => {
               )
             ),
             completedAt: s.completed_at,
+            ...(isAdmin && user?.phone ? { phone: user.phone } : {}),
           });
         }
         return json(mapped);

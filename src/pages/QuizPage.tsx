@@ -23,7 +23,28 @@ const QuizPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [quizEnded, setQuizEnded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+
+  // Prevent copy/cut/paste and text selection during quiz
+  useEffect(() => {
+    if (!quiz || quizEnded) return;
+    const stop = (e: Event) => e.preventDefault();
+    const disableContext = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('copy', stop);
+    document.addEventListener('cut', stop);
+    document.addEventListener('paste', stop);
+    document.addEventListener('contextmenu', disableContext);
+    document.addEventListener('selectstart', stop);
+    return () => {
+      document.removeEventListener('copy', stop);
+      document.removeEventListener('cut', stop);
+      document.removeEventListener('paste', stop);
+      document.removeEventListener('contextmenu', disableContext);
+      document.removeEventListener('selectstart', stop);
+    };
+  }, [quiz, quizEnded]);
+
   // Warn on reload/navigation during quiz
   useEffect(() => {
     if (!quiz || quizEnded) return;
@@ -38,6 +59,26 @@ const QuizPage = () => {
   useEffect(() => {
     initializeQuiz();
   }, []);
+
+  type SavedProgress = {
+    sessionId: string;
+    userId: string;
+    quizId: string;
+    quiz: ShuffledQuiz;
+    currentQuestionIndex: number;
+    timeLeft: number;
+    answers: Array<{ questionId: string; selectedAnswer: number | null }>;
+    lastTickAt: number; // ms
+    startedAt?: string; // ISO
+  };
+
+  const makeProgressKey = (uid: string, qid: string) => `quizProgress:${uid}:${qid}`;
+
+  const getMaxTime = (qz: ShuffledQuiz) => {
+    const total = Number(qz.totalTime || 0);
+    if (total && total > 0) return total;
+    return (qz.questions || []).reduce((sum, q) => sum + Number((q as Question).time || 0), 0);
+  };
 
   const initializeQuiz = async () => {
     try {
@@ -76,13 +117,10 @@ const QuizPage = () => {
         console.error('Error checking user attempt:', error);
       }
 
-      // Start quiz session on server, receive quiz payload, then shuffle client-side
+      // Start (or resume) server session and get quiz payload, then resume locally if possible
+      let started;
       try {
-        const start = await api.startQuiz(quizData.id);
-        const shuffled = shuffleQuizForClient(start.quiz);
-        setQuiz(shuffled);
-        const firstTime = shuffled.questions?.[0]?.time || 30;
-        setTimeLeft(firstTime);
+        started = await api.startQuiz(quizData.id);
       } catch (error) {
         console.error('Error starting quiz session:', error);
         toast({
@@ -93,6 +131,115 @@ const QuizPage = () => {
         navigate("/");
         return;
       }
+
+      setSessionId(started.sessionId);
+      setSessionStartedAt(started.startedAt);
+
+      // Server now returns sanitized questions; no hydration from bank
+      let hydratedQuiz: Quiz = started.quiz as Quiz;
+
+      const key = makeProgressKey(userData.id, quizData.id);
+      const savedRaw = localStorage.getItem(key);
+
+      if (savedRaw) {
+        try {
+          const saved: SavedProgress = JSON.parse(savedRaw);
+          // Validate saved progress belongs to same user/quiz; prefer same session but allow resume if session matches
+          if (saved.userId === userData.id && saved.quizId === quizData.id) {
+            const savedQuiz = saved.quiz;
+            const maxTime = getMaxTime(savedQuiz);
+
+            // Overall expiry check using server startedAt if available
+            if (started.startedAt) {
+              const elapsedSinceStart = Math.floor((Date.now() - new Date(started.startedAt).getTime()) / 1000);
+              if (maxTime > 0 && elapsedSinceStart >= maxTime) {
+                // Auto submit with whatever answers we have
+                setQuiz(savedQuiz);
+                setAnswers(saved.answers || []);
+                setCurrentQuestionIndex(saved.currentQuestionIndex || 0);
+                setTimeLeft(0);
+                setIsLoading(false);
+                // Defer submit to next tick so state is set
+                setTimeout(() => completeQuiz(saved.answers || []), 0);
+                return;
+              }
+            }
+
+            // Fast-forward by time elapsed since last tick
+            let idx = saved.currentQuestionIndex || 0;
+            let tLeft = saved.timeLeft ?? ((savedQuiz.questions?.[idx] as Question)?.time || 30);
+            let updatedAnswers = Array.isArray(saved.answers) ? [...saved.answers] : [];
+            let delta = Math.max(0, Math.floor((Date.now() - (saved.lastTickAt || Date.now())) / 1000));
+            const total = savedQuiz.questions.length;
+
+            while (delta > 0 && idx < total) {
+              if (delta < tLeft) {
+                tLeft = tLeft - delta;
+                delta = 0;
+                break;
+              }
+              // Current question elapsed
+              delta -= tLeft;
+              if (!updatedAnswers[idx]) {
+                updatedAnswers[idx] = { questionId: (savedQuiz.questions[idx] as Question).id, selectedAnswer: null };
+              }
+              idx += 1;
+              if (idx >= total) break;
+              tLeft = (savedQuiz.questions[idx] as Question).time || 30;
+            }
+
+            if (idx >= total) {
+              // Completed due to elapsed time
+              setQuiz(savedQuiz);
+              setAnswers(updatedAnswers);
+              setCurrentQuestionIndex(total - 1);
+              setTimeLeft(0);
+              setIsLoading(false);
+              setTimeout(() => completeQuiz(updatedAnswers), 0);
+              return;
+            }
+
+            // Resume at computed position
+            setQuiz(savedQuiz);
+            setAnswers(updatedAnswers);
+            setCurrentQuestionIndex(idx);
+            setSelectedAnswer(null);
+            setShowAnswer(false);
+            setTimeLeft(tLeft);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse saved progress, starting fresh');
+        }
+      }
+
+      // No valid saved progress -> start fresh and shuffle
+      const shuffled = shuffleQuizForClient(hydratedQuiz);
+      if (!shuffled.questions || shuffled.questions.length === 0) {
+        toast({ title: "Error", description: "No questions found for this quiz.", variant: "destructive" });
+        navigate("/");
+        return;
+      }
+      setQuiz(shuffled);
+      const firstTime = (shuffled.questions?.[0] as Question)?.time || 30;
+      setTimeLeft(firstTime);
+      // Persist initial progress
+      try {
+        const keyFresh = makeProgressKey(userData.id, shuffled.id);
+        const payload: SavedProgress = {
+          sessionId: started.sessionId,
+          userId: userData.id,
+          quizId: shuffled.id,
+          quiz: shuffled,
+          currentQuestionIndex: 0,
+          timeLeft: firstTime,
+          answers: [],
+          lastTickAt: Date.now(),
+          startedAt: started.startedAt,
+        };
+        localStorage.setItem(keyFresh, JSON.stringify(payload));
+      } catch {}
 
     } catch (error) {
       console.error('Error initializing quiz:', error);
@@ -107,7 +254,7 @@ const QuizPage = () => {
     }
   };
 
-  const currentQuestion = quiz?.questions[currentQuestionIndex];
+  const currentQuestion = (quiz?.questions[currentQuestionIndex] as Question | undefined);
   const progress = quiz ? ((currentQuestionIndex + 1) / quiz.questions.length) * 100 : 0;
 
   useEffect(() => {
@@ -120,6 +267,26 @@ const QuizPage = () => {
       recordAnswer(null);
     }
   }, [timeLeft, showAnswer, quiz, currentQuestion, quizEnded]);
+
+  // Persist progress when key states change
+  useEffect(() => {
+    if (!quiz || !user || quizEnded) return;
+    try {
+      const key = makeProgressKey(user.id, quiz.id);
+      const payload: SavedProgress = {
+        sessionId: sessionId || "",
+        userId: user.id,
+        quizId: quiz.id,
+        quiz,
+        currentQuestionIndex,
+        timeLeft,
+        answers: answers as any,
+        lastTickAt: Date.now(),
+        startedAt: sessionStartedAt || undefined,
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch {}
+  }, [quiz, user, currentQuestionIndex, timeLeft, answers, quizEnded, sessionId, sessionStartedAt]);
 
   const recordAnswer = (answerIndex: number | null) => {
     if (showAnswer || !currentQuestion || !quiz) return;
@@ -140,7 +307,7 @@ const QuizPage = () => {
       setCurrentQuestionIndex(nextIdx);
       setSelectedAnswer(null);
       setShowAnswer(false);
-      setTimeLeft(quiz.questions[nextIdx].time || 30);
+      setTimeLeft((quiz.questions[nextIdx] as Question).time || 30);
     }
   };
 
@@ -164,6 +331,12 @@ const QuizPage = () => {
         quizId: quiz.id,
         answers: deShuffled,
       });
+
+      // Clear saved progress on successful completion
+      try {
+        const key = makeProgressKey(user.id, quiz.id);
+        localStorage.removeItem(key);
+      } catch {}
 
       // Store result for display on results page (from server)
       const result = {
@@ -203,17 +376,12 @@ const QuizPage = () => {
   };
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-500/20 text-green-700 dark:text-green-300';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300';
-      case 'hard': return 'bg-red-500/20 text-red-700 dark:text-red-300';
-      default: return 'bg-muted/20 text-muted-foreground';
-    }
+    return 'bg-muted/20 text-muted-foreground';
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading quiz...</p>
@@ -224,7 +392,7 @@ const QuizPage = () => {
 
   if (!quiz || !currentQuestion) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <Card className="card-glass p-8 text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Quiz Not Available</h2>
@@ -242,7 +410,7 @@ const QuizPage = () => {
   // Show submission loader when submitting
   if (isSubmitting) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center select-none">
         <div className="text-center animate-fade-in-up">
           <div className="relative mb-8">
             <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-primary mx-auto mb-4" 
@@ -266,7 +434,7 @@ const QuizPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 select-none">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Progress Header */}
         <div className="mb-8">
@@ -298,7 +466,7 @@ const QuizPage = () => {
                     fill="none"
                     stroke={timeLeft <= 10 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
                     strokeWidth="3"
-                    strokeDasharray={`${(timeLeft / (currentQuestion?.time || 30)) * 100}, 100`}
+                    strokeDasharray={`${(timeLeft / ((currentQuestion as Question)?.time || 30)) * 100}, 100`}
                     strokeLinecap="round"
                     className={`transition-all duration-1000 ${timeLeft <= 10 ? 'animate-pulse drop-shadow-lg' : ''}`}
                     style={{
@@ -340,35 +508,27 @@ const QuizPage = () => {
         </div>
 
         {/* Question Card */}
-        <Card key={currentQuestion.id} className="card-quiz animate-fade-in-up">
+        <Card key={(currentQuestion as Question).id} className="card-quiz animate-fade-in-up">
           <div className="space-y-6">
             {/* Warning Banner */}
             <div className="text-xs text-yellow-800 bg-yellow-100 rounded-md px-3 py-2">
               Do not refresh or close this page during the quiz. Your progress may be lost.
             </div>
-            {/* Category & Difficulty */}
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium">
-                {currentQuestion.category}
+            <div className="flex items-center justify-end">
+              <span className="text-sm text-muted-foreground">
+                +{(currentQuestion as Question).positivePoints} / -{(currentQuestion as Question).negativePoints} pts • {(currentQuestion as Question).time}s
               </span>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(currentQuestion.difficulty)}`}>
-                  {currentQuestion.difficulty.toUpperCase()}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  +{currentQuestion.positivePoints} / -{currentQuestion.negativePoints} pts • {currentQuestion.time}s
-                </span>
-              </div>
             </div>
 
             {/* Question */}
             <h2 className="text-2xl font-bold leading-relaxed">
-              {currentQuestion.question}
+              {(currentQuestion as Question).question
+            }
             </h2>
 
             {/* Answer Options */}
             <div className="grid gap-4">
-              {currentQuestion.options.map((option, index) => (
+              {(currentQuestion as Question).options.map((option, index) => (
                 <button
                   key={index}
                   onClick={() => handleAnswerSelect(index)}
@@ -408,6 +568,13 @@ const QuizPage = () => {
                 </div>
               </div>
             )}
+
+            {/* End Quiz Early */}
+            <div className="pt-2 flex justify-end">
+              <Button variant="outline" onClick={() => completeQuiz()} disabled={isSubmitting}>
+                End Quiz
+              </Button>
+            </div>
           </div>
         </Card>
 

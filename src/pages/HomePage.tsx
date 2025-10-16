@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle, Share, Twitter, Linkedin, Copy } from "lucide-react";
+import { Brain, Zap, Trophy, Play, Clock, Users, CheckCircle, Share, Twitter, Linkedin, Copy, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -9,8 +9,7 @@ import UserRegistration from "@/components/UserRegistration";
 
 const HomePage = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [activeQuizzes, setActiveQuizzes] = useState<Quiz[]>([]);
-  const [userAttempts, setUserAttempts] = useState<Record<string, boolean>>({});
+  const [quizzes, setQuizzes] = useState<Array<Pick<Quiz, 'id' | 'title' | 'description' | 'status' | 'totalTime' | 'totalQuestions' | 'createdAt' | 'scheduledAt'> & { hasAttempted: boolean }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -41,33 +40,31 @@ const HomePage = () => {
 
   useEffect(() => {
     if (user) {
-      loadActiveQuizzes();
+      loadQuizzes();
     }
   }, [user]);
 
-  const loadActiveQuizzes = async () => {
+  const loadQuizzes = async () => {
     try {
       setIsLoading(true);
-      const quizzes = await api.getActiveQuizzes();
-      setActiveQuizzes(quizzes);
-      
-      // Check user attempts for each active quiz
-      if (user) {
-        const attempts: Record<string, boolean> = {};
-        for (const quiz of quizzes) {
-          try {
-            const attemptData = await api.checkUserAttempt(user.id, quiz.id);
-            attempts[quiz.id] = attemptData.hasAttempted;
-          } catch (error) {
-            console.error(`Error checking attempt for quiz ${quiz.id}:`, error);
-            attempts[quiz.id] = false;
-          }
+      if (!user) return;
+      const list = await api.getUserQuizzes(user.id);
+      // Sort: active → scheduled (soonest first) → completed
+      const sorted = list.sort((a, b) => {
+        const rank = (s: string) => (s === 'active' ? 0 : s === 'scheduled' ? 1 : s === 'completed' ? 2 : 3);
+        const r = rank(a.status) - rank(b.status);
+        if (r !== 0) return r;
+        if (a.status === 'scheduled' && b.status === 'scheduled') {
+          const at = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const bt = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          if (at !== bt) return at - bt;
         }
-        setUserAttempts(attempts);
-      }
+        return a.title.localeCompare(b.title);
+      });
+      setQuizzes(sorted);
     } catch (error) {
-      console.error('Error loading active quizzes:', error);
-      setActiveQuizzes([]);
+      console.error('Error loading quizzes:', error);
+      setQuizzes([]);
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +90,7 @@ const HomePage = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const startQuiz = async (quiz: Quiz) => {
+  const startQuiz = async (quiz: typeof quizzes[number]) => {
     if (!user) {
       toast({
         title: "Error",
@@ -103,20 +100,38 @@ const HomePage = () => {
       return;
     }
 
-    // Check if user has already attempted this quiz
-    if (userAttempts[quiz.id]) {
+    if (quiz.status === 'completed' && !quiz.hasAttempted) {
       toast({
-        title: "Already Attempted",
-        description: "You have already completed this quiz. Each quiz can only be attempted once.",
+        title: "Quiz Ended",
+        description: "This quiz has ended and can no longer be attempted.",
         variant: "destructive"
       });
       return;
     }
 
+    if (quiz.hasAttempted) {
+      toast({
+        title: "Already Attempted",
+        description: "You have already completed this quiz.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If scheduled and not yet started, prevent start
+    if (quiz.status === 'scheduled') {
+      const now = Date.now();
+      const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
+      if (!Number.isNaN(schedMs) && now < schedMs) {
+        toast({ title: "Scheduled", description: `Starts at ${new Date(schedMs).toLocaleString()}`, variant: "destructive" });
+        return;
+      }
+    }
+
     // Store current user and quiz info for the quiz session (metadata only)
     localStorage.setItem("playerName", user.name);
     localStorage.setItem("currentUser", JSON.stringify(user));
-    localStorage.setItem("currentQuiz", JSON.stringify({ id: quiz.id, title: quiz.title }));
+    localStorage.setItem("currentQuiz", JSON.stringify({ id: quiz.id, title: quiz.title, scheduledAt: quiz.scheduledAt || null }));
     
     navigate("/quiz");
   };
@@ -144,6 +159,10 @@ const HomePage = () => {
     }
   ];
 
+  const active = quizzes.filter(q => q.status === 'active');
+  const scheduled = quizzes.filter(q => q.status === 'scheduled');
+  const completed = quizzes.filter(q => q.status === 'completed');
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -168,29 +187,80 @@ const HomePage = () => {
             </h1>
             
             <p className="text-xl text-muted-foreground mb-8 animate-fade-in-up [animation-delay:0.2s]">
-              {activeQuizzes.length > 0 
-                ? `${activeQuizzes.length} active quiz${activeQuizzes.length > 1 ? 'es' : ''} available! Test your knowledge and compete for the top spot!`
-                : "Waiting for the next quiz session to begin. Check back soon!"
+              {active.length > 0 
+                ? `${active.length} active quiz${active.length > 1 ? 'es' : ''} available! Test your knowledge and compete for the top spot!`
+                : completed.length > 0
+                  ? `No active quizzes currently. ${completed.length} quiz${completed.length > 1 ? 'zes' : ''} have ended.`
+                  : "Waiting for the next quiz session to begin. Check back soon!"
               }
             </p>
             
             {/* Loading State */}
-            {isLoading ? (
+              {isLoading ? (
               <div className="text-center animate-fade-in-up [animation-delay:0.4s]">
                 <div className="inline-flex items-center px-6 py-3 bg-card/70 backdrop-blur-sm rounded-full border border-border/50">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-3"></div>
                   <span className="text-muted-foreground">Loading available quizzes...</span>
                 </div>
               </div>
-            ) : activeQuizzes.length > 0 ? (
+            ) : (
               <div className="max-w-2xl mx-auto mb-8 space-y-4 animate-fade-in-up [animation-delay:0.4s]">
-                {activeQuizzes.map((quiz) => (
+                {scheduled.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-1 text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      Scheduled Quizzes
+                    </div>
+                    {scheduled.map((quiz) => {
+                      const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
+                      const notStarted = !Number.isNaN(schedMs) && Date.now() < schedMs;
+                      return (
+                        <Card key={quiz.id} className="card-glass p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                                <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
+                                  <Clock className="w-3 h-3" />
+                                  Scheduled
+                                </div>
+                              </div>
+                              {quiz.description && (
+                                <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
+                              )}
+                              <div className="flex gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  <span>{quiz.totalQuestions} Questions</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>Starts at {quiz.scheduledAt ? new Date(quiz.scheduledAt).toLocaleString() : 'TBA'}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => startQuiz(quiz)}
+                              disabled={quiz.hasAttempted || notStarted}
+                              className="ml-4"
+                              variant={notStarted ? "outline" : (quiz.hasAttempted ? "secondary" : "default")}
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              {notStarted ? "Starts Soon" : (quiz.hasAttempted ? "Completed" : "Start Quiz")}
+                            </Button>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+                {active.map((quiz) => (
                   <Card key={quiz.id} className="card-glass p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-semibold">{quiz.title}</h3>
-                          {userAttempts[quiz.id] && (
+                          {quiz.hasAttempted && (
                             <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                               <CheckCircle className="w-3 h-3" />
                               Completed
@@ -213,34 +283,62 @@ const HomePage = () => {
                       </div>
                       <Button
                         onClick={() => startQuiz(quiz)}
-                        disabled={userAttempts[quiz.id]}
+                        disabled={quiz.hasAttempted}
                         className="ml-4"
-                        variant={userAttempts[quiz.id] ? "secondary" : "default"}
+                        variant={quiz.hasAttempted ? "secondary" : "default"}
                       >
                         <Play className="w-4 h-4 mr-2" />
-                        {userAttempts[quiz.id] ? "Completed" : "Start Quiz"}
+                        {quiz.hasAttempted ? "Completed" : "Start Quiz"}
                       </Button>
                     </div>
                   </Card>
                 ))}
-              </div>
-            ) : (
-              <div className="max-w-md mx-auto text-center animate-fade-in-up [animation-delay:0.4s]">
-                <Card className="card-glass p-8">
-                  <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Active Quizzes</h3>
-                  <p className="text-muted-foreground mb-4">
-                    There are no active quiz sessions at the moment. Check back soon or contact an admin to start a quiz!
-                  </p>
-                  <Button
-                    onClick={loadActiveQuizzes}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Clock className="w-4 h-4 mr-2" />
-                    Check Again
-                  </Button>
-                </Card>
+
+                {completed.length > 0 && (
+                  <div className="mt-8">
+                    <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+                      <AlertCircle className="w-4 h-4" />
+                      Ended Quizzes
+                    </div>
+                    {completed.map((quiz) => (
+                      <Card key={quiz.id} className="card-glass p-6 opacity-90">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm ${quiz.hasAttempted ? 'bg-green-100 text-green-700' : 'bg-muted/50 text-muted-foreground'}`}>
+                                {quiz.hasAttempted ? <CheckCircle className="w-3 h-3" /> : null}
+                                {quiz.hasAttempted ? 'Completed' : 'Ended'}
+                              </div>
+                            </div>
+                            {quiz.description && (
+                              <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
+                            )}
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-4 h-4" />
+                                <span>{quiz.totalQuestions} Questions</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{Math.floor((quiz.totalTime || 0) / 60)}m {((quiz.totalTime || 0) % 60)}s total</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => startQuiz(quiz)}
+                            disabled={!quiz.hasAttempted}
+                            className="ml-4"
+                            variant={quiz.hasAttempted ? "secondary" : "outline"}
+                          >
+                            <Play className="w-4 h-4 mr-2" />
+                            {quiz.hasAttempted ? "Completed" : "Ended"}
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

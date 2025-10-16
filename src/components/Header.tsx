@@ -113,8 +113,8 @@ const Header = () => {
           </Link>
 
           <nav className="flex items-center space-x-2">
-            {/* Only show navigation if user is logged in and not on quiz/admin routes */}
-            {currentUser && !isQuizRoute && !isAdminRoute && (
+            {/* Show navigation when user is logged in on all routes except during quiz/results */}
+            {currentUser && !isQuizRoute && (
               <>
                 <Button
                   variant={isActive("/") ? "default" : "ghost"}

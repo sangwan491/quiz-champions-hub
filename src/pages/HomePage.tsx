@@ -196,7 +196,7 @@ const HomePage = () => {
             </p>
             
             {/* Loading State */}
-              {isLoading ? (
+            {isLoading ? (
               <div className="text-center animate-fade-in-up [animation-delay:0.4s]">
                 <div className="inline-flex items-center px-6 py-3 bg-card/70 backdrop-blur-sm rounded-full border border-border/50">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-3"></div>
@@ -204,23 +204,75 @@ const HomePage = () => {
                 </div>
               </div>
             ) : (
-              <div className="max-w-2xl mx-auto mb-8 space-y-4 animate-fade-in-up [animation-delay:0.4s]">
+              <div className="max-w-2xl mx-auto mb-8 space-y-8 animate-fade-in-up [animation-delay:0.4s]">
+                {/* Active Quizzes Section */}
+                {active.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                      <Zap className="w-5 h-5 text-primary" />
+                      <h3 className="font-semibold text-primary">Active Quizzes</h3>
+                      <span className="ml-auto text-sm text-muted-foreground">{active.length} available</span>
+                    </div>
+                    {active.map((quiz) => (
+                      <Card key={quiz.id} className="card-glass p-6 border-primary/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                              {quiz.hasAttempted && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                                  <CheckCircle className="w-3 h-3" />
+                                  Completed
+                                </div>
+                              )}
+                            </div>
+                            {quiz.description && (
+                              <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
+                            )}
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-4 h-4" />
+                                <span>{quiz.totalQuestions} Questions</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{Math.floor((quiz.totalTime || 0) / 60)}m {((quiz.totalTime || 0) % 60)}s total</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => startQuiz(quiz)}
+                            disabled={quiz.hasAttempted}
+                            className="ml-4"
+                            variant={quiz.hasAttempted ? "secondary" : "default"}
+                          >
+                            <Play className="w-4 h-4 mr-2" />
+                            {quiz.hasAttempted ? "Completed" : "Start Quiz"}
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Scheduled Quizzes Section */}
                 {scheduled.length > 0 && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-1 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      Scheduled Quizzes
+                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <Clock className="w-5 h-5 text-amber-700 dark:text-amber-500" />
+                      <h3 className="font-semibold text-amber-700 dark:text-amber-500">Scheduled Quizzes</h3>
+                      <span className="ml-auto text-sm text-amber-600 dark:text-amber-400">{scheduled.length} upcoming</span>
                     </div>
                     {scheduled.map((quiz) => {
                       const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
                       const notStarted = !Number.isNaN(schedMs) && Date.now() < schedMs;
                       return (
-                        <Card key={quiz.id} className="card-glass p-6">
+                        <Card key={quiz.id} className="card-glass p-6 border-amber-200 dark:border-amber-800">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <h3 className="text-lg font-semibold">{quiz.title}</h3>
-                                <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-full text-sm">
                                   <Clock className="w-3 h-3" />
                                   Scheduled
                                 </div>
@@ -254,59 +306,22 @@ const HomePage = () => {
                     })}
                   </div>
                 )}
-                {active.map((quiz) => (
-                  <Card key={quiz.id} className="card-glass p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{quiz.title}</h3>
-                          {quiz.hasAttempted && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                              <CheckCircle className="w-3 h-3" />
-                              Completed
-                            </div>
-                          )}
-                        </div>
-                        {quiz.description && (
-                          <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
-                        )}
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>{quiz.totalQuestions} Questions</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{Math.floor((quiz.totalTime || 0) / 60)}m {((quiz.totalTime || 0) % 60)}s total</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => startQuiz(quiz)}
-                        disabled={quiz.hasAttempted}
-                        className="ml-4"
-                        variant={quiz.hasAttempted ? "secondary" : "default"}
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        {quiz.hasAttempted ? "Completed" : "Start Quiz"}
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
 
+                {/* Ended Quizzes Section */}
                 {completed.length > 0 && (
-                  <div className="mt-8">
-                    <div className="flex items-center gap-2 mb-3 text-muted-foreground">
-                      <AlertCircle className="w-4 h-4" />
-                      Ended Quizzes
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-lg border border-border">
+                      <AlertCircle className="w-5 h-5 text-muted-foreground" />
+                      <h3 className="font-semibold text-muted-foreground">Ended Quizzes</h3>
+                      <span className="ml-auto text-sm text-muted-foreground">{completed.length} quiz{completed.length > 1 ? 'zes' : ''}</span>
                     </div>
                     {completed.map((quiz) => (
-                      <Card key={quiz.id} className="card-glass p-6 opacity-90">
+                      <Card key={quiz.id} className="card-glass p-6 opacity-75">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-semibold">{quiz.title}</h3>
-                              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm ${quiz.hasAttempted ? 'bg-green-100 text-green-700' : 'bg-muted/50 text-muted-foreground'}`}>
+                              <h3 className="text-lg font-semibold text-muted-foreground">{quiz.title}</h3>
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm ${quiz.hasAttempted ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
                                 {quiz.hasAttempted ? <CheckCircle className="w-3 h-3" /> : null}
                                 {quiz.hasAttempted ? 'Completed' : 'Ended'}
                               </div>
@@ -327,9 +342,9 @@ const HomePage = () => {
                           </div>
                           <Button
                             onClick={() => startQuiz(quiz)}
-                            disabled={!quiz.hasAttempted}
+                            disabled
                             className="ml-4"
-                            variant={quiz.hasAttempted ? "secondary" : "outline"}
+                            variant="outline"
                           >
                             <Play className="w-4 h-4 mr-2" />
                             {quiz.hasAttempted ? "Completed" : "Ended"}
@@ -338,6 +353,13 @@ const HomePage = () => {
                       </Card>
                     ))}
                   </div>
+                )}
+
+                {/* No quizzes message */}
+                {active.length === 0 && scheduled.length === 0 && completed.length === 0 && (
+                  <Card className="card-glass p-12 text-center">
+                    <p className="text-muted-foreground">No quizzes available at the moment. Check back soon!</p>
+                  </Card>
                 )}
               </div>
             )}

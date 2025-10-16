@@ -206,7 +206,7 @@ function mapQuiz(quiz: any, questions: any[] = []) {
   };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   try {
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: baseHeaders, status: 204 });

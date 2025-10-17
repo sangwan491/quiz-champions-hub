@@ -195,11 +195,18 @@ const LeaderboardPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 p-6">
         <div className="container mx-auto">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading leaderboard...</p>
+          <div className="text-center py-12 animate-fade-in-up">
+            <div className="relative mb-8 inline-block">
+              <div className="animate-spin rounded-full h-16 w-16 md:h-20 md:h-20 border-b-4 border-primary mx-auto shadow-lg" 
+                   style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.3))' }}></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Trophy className="w-8 h-8 md:w-10 md:h-10 text-primary animate-pulse" />
+              </div>
+            </div>
+            <h2 className="text-xl md:text-2xl font-bold mb-2">Loading Leaderboard...</h2>
+            <p className="text-muted-foreground">Fetching the top performers...</p>
           </div>
         </div>
       </div>
@@ -207,26 +214,29 @@ const LeaderboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 p-4 md:p-6 pb-12">
+      <div className="container mx-auto max-w-5xl">
         {/* Header Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
-            🏆 Leaderboard
+        <div className="text-center mb-8 md:mb-10 animate-fade-in-up">
+          <div className="inline-block mb-4">
+            <Trophy className="w-16 h-16 md:w-20 md:h-20 text-primary animate-float mx-auto" />
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-3">
+            Leaderboard
           </h1>
-          <p className="text-lg text-muted-foreground mb-6">
+          <p className="text-base md:text-lg text-muted-foreground font-medium">
             {getSelectedQuizTitle()} Rankings
           </p>
           
           {/* Controls */}
-          <div className="flex flex-wrap justify-center gap-4 mb-6">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-8 animate-fade-in-up" style={{animationDelay: '0.1s'}}>
             {/* Quiz Selection */}
             <Select value={selectedQuizId} onValueChange={setSelectedQuizId}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-full sm:w-64 rounded-[var(--radius-button)] border-2 shadow-sm">
                 <SelectValue placeholder="Select quiz..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Global Leaderboard</SelectItem>
+                <SelectItem value="all">🌍 Global Leaderboard</SelectItem>
                 {quizzes.map((quiz) => (
                   <SelectItem key={quiz.id} value={quiz.id}>
                     {quiz.title}
@@ -236,16 +246,16 @@ const LeaderboardPage = () => {
             </Select>
 
             {/* Time Filter */}
-            <div className="flex bg-muted rounded-lg p-1">
+            <div className="flex bg-card rounded-[var(--radius-button)] p-1 border-2 border-border shadow-sm">
               {(['all', 'today'] as const).map((filterOption) => (
                 <Button
                   key={filterOption}
                   variant={filter === filterOption ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setFilter(filterOption)}
-                  className="capitalize"
+                  className="capitalize rounded-[var(--radius-button)]"
                 >
-                  {filterOption === 'all' ? 'All Time' : filterOption}
+                  {filterOption === 'all' ? 'All Time' : 'Today'}
                 </Button>
               ))}
             </div>
@@ -256,64 +266,74 @@ const LeaderboardPage = () => {
               disabled={isRefreshing}
               variant="outline"
               size="sm"
+              className="rounded-[var(--radius-button)] border-2 shadow-sm"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </div>
 
         {/* My Stats */}
         {myResult && (
-          <Card className="card-glass p-4 mb-6 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground">Your Position</div>
-                <div className="text-2xl font-bold">#{myIndex + 1}</div>
+          <Card className="brevo-card p-5 md:p-6 mb-6 md:mb-8 animate-fade-in-up border-2 border-primary/20 shadow-lg" style={{animationDelay: '0.2s'}}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-md">
+                  <Target className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                </div>
+                <div>
+                  <div className="text-xs md:text-sm text-muted-foreground font-medium mb-1">Your Position</div>
+                  <div className="text-2xl md:text-3xl font-bold text-foreground">#{myIndex + 1}</div>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-muted-foreground">Your Points</div>
-                <div className="text-2xl font-bold text-primary">{myResult.score}</div>
+                <div className="text-xs md:text-sm text-muted-foreground font-medium mb-1">Your Points</div>
+                <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{myResult.score}</div>
               </div>
             </div>
             {selectedQuizId === 'all' && (
-              <div className="mt-2 text-sm text-muted-foreground">
-                {attemptCounts[currentUserId || ""] || 1} quizzes attempted
+              <div className="mt-3 pt-3 border-t border-border text-sm text-muted-foreground font-medium">
+                🎯 {attemptCounts[currentUserId || ""] || 1} quizzes attempted
               </div>
             )}
           </Card>
         )}
 
-        {/* Stats Cards (no Average Time) */}
+        {/* Stats Cards */}
         {filter === 'all' && filteredResults.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card className="card-glass p-6 text-center animate-fade-in-up">
-              <Trophy className="w-8 h-8 text-primary mx-auto mb-3" />
-              <div className="text-2xl font-bold">{filteredResults.length}</div>
-              <p className="text-sm text-muted-foreground">Total Players</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-8 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
+            <Card className="brevo-card p-6 text-center hover-lift shadow-md">
+              <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
+                <Trophy className="w-7 h-7 text-white" />
+              </div>
+              <div className="text-3xl md:text-4xl font-bold text-foreground mb-1">{filteredResults.length}</div>
+              <p className="text-sm text-muted-foreground font-medium">Total Players</p>
             </Card>
             
-            <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.1s]">
-              <Target className="w-8 h-8 text-secondary mx-auto mb-3" />
-              <div className="text-2xl font-bold">
+            <Card className="brevo-card p-6 text-center hover-lift shadow-md">
+              <div className="w-14 h-14 bg-gradient-to-br from-secondary to-secondary/70 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
+                <Target className="w-7 h-7 text-white" />
+              </div>
+              <div className="text-3xl md:text-4xl font-bold text-foreground mb-1">
                 {Math.round(filteredResults.reduce((acc, r) => acc + r.score, 0) / filteredResults.length)}
               </div>
-              <p className="text-sm text-muted-foreground">Average Score</p>
+              <p className="text-sm text-muted-foreground font-medium">Average Score</p>
             </Card>
           </div>
         )}
 
         {/* Leaderboard */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {paginatedResults.length === 0 ? (
-            <Card className="card-glass p-8 text-center">
-              <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">
+            <Card className="brevo-card p-8 md:p-12 text-center animate-fade-in-up">
+              <Trophy className="w-16 h-16 md:w-20 md:h-20 text-muted-foreground mx-auto mb-6 opacity-50" />
+              <h3 className="text-xl md:text-2xl font-bold mb-3 text-foreground">
                 {filter === 'all' ? 'No results yet' : `No results for ${filter}`}
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-base">
                 {filter === 'all' 
-                  ? 'Be the first to complete a quiz!' 
+                  ? 'Be the first to complete a quiz and claim the top spot! 🏆' 
                   : 'Try changing the filter or check back later.'
                 }
               </p>
@@ -325,43 +345,49 @@ const LeaderboardPage = () => {
               return (
                 <Card 
                   key={result.id} 
-                  className={`p-6 transition-all duration-300 hover:scale-[1.02] animate-fade-in-up ${getRankClass(rank)}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className={`p-5 md:p-6 transition-all duration-300 hover-lift animate-fade-in-up ${getRankClass(rank)} shadow-md`}
+                  style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                      <div className="flex items-center justify-center flex-shrink-0">
                         {getRankIcon(rank)}
                       </div>
                       
-                      <div>
-                        <h3 className="font-semibold text-lg">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base md:text-lg text-foreground truncate">
                           {result.playerName}
                           {currentUserId === result.userId && (
-                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary align-middle">You</span>
+                            <span className="ml-2 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 align-middle font-semibold">You</span>
                           )}
                         </h3>
-                        <div className="text-sm text-muted-foreground">
-                          <p>{formatDate(result.completedAt)}</p>
-                          {result.phone ? (
-                            <p className="text-xs">📞 {result.phone}</p>
-                          ) : null}
-                          {selectedQuizId === 'all' ? (
-                            <p className="text-xs">{attemptCounts[result.userId] || 1} quizzes</p>
-                          ) : null}
+                        <div className="text-xs md:text-sm text-muted-foreground mt-1 space-y-0.5">
+                          <p className="font-medium">{formatDate(result.completedAt)}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {result.phone && (
+                              <span className="inline-flex items-center gap-1 text-xs">
+                                📞 {result.phone}
+                              </span>
+                            )}
+                            {selectedQuizId === 'all' && (
+                              <span className="inline-flex items-center gap-1 text-xs bg-muted/50 px-2 py-0.5 rounded-full">
+                                🎯 {attemptCounts[result.userId] || 1} quizzes
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-6 text-right">
+                    <div className="flex items-center gap-4 md:gap-6 text-right flex-shrink-0">
                       <div>
-                        <div className="text-2xl font-bold text-primary">{result.score}</div>
-                        <p className="text-sm text-muted-foreground">Points</p>
+                        <div className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{result.score}</div>
+                        <p className="text-xs md:text-sm text-muted-foreground font-medium">Points</p>
                       </div>
 
-                      <div className="hidden md:block">
-                        <div className="text-lg font-semibold">{formatTime(result.timeSpent)}</div>
-                        <p className="text-sm text-muted-foreground">Time</p>
+                      <div className="hidden sm:block">
+                        <div className="text-base md:text-lg font-bold text-foreground">{formatTime(result.timeSpent)}</div>
+                        <p className="text-xs md:text-sm text-muted-foreground font-medium">Time</p>
                       </div>
                     </div>
                   </div>
@@ -373,23 +399,39 @@ const LeaderboardPage = () => {
 
         {/* Pagination */}
         {filteredResults.length > PAGE_SIZE && (
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
-              Prev
+          <div className="flex items-center justify-center gap-3 mt-8 animate-fade-in-up">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} 
+              disabled={currentPage === 1}
+              className="rounded-[var(--radius-button)] border-2"
+            >
+              ← Prev
             </Button>
-            <div className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</div>
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-              Next
+            <div className="px-4 py-2 bg-card rounded-[var(--radius-button)] border-2 border-border text-sm font-semibold text-foreground shadow-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} 
+              disabled={currentPage === totalPages}
+              className="rounded-[var(--radius-button)] border-2"
+            >
+              Next →
             </Button>
           </div>
         )}
 
-        {/* Current User's Rank (if they've played) */}
+        {/* Footer Info */}
         {filteredResults.length > 0 && (
-          <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              Leaderboard updates in real-time as players complete quizzes
-            </p>
+          <div className="mt-8 text-center animate-fade-in-up">
+            <Card className="brevo-card p-4 inline-block">
+              <p className="text-sm text-muted-foreground font-medium">
+                🔄 Leaderboard updates in real-time as players complete quizzes
+              </p>
+            </Card>
           </div>
         )}
       </div>

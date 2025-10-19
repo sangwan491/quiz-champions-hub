@@ -207,11 +207,11 @@ const LeaderboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
+    <div className="min-h-screen  p-6">
       <div className="container mx-auto max-w-4xl">
         {/* Header Section */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-brev-brand mb-2">
             🏆 Leaderboard
           </h1>
           <p className="text-lg text-muted-foreground mb-6">

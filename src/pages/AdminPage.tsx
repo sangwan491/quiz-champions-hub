@@ -509,8 +509,8 @@ const AdminPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-2 ">
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-brevo-brand">
                 Admin Panel
               </span>
             </h1>

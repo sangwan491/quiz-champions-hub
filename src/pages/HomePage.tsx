@@ -168,18 +168,18 @@ const HomePage = () => {
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <img 
+          {/* <img 
             src="@/assets/quiz-hero.jpg" 
             alt="Quiz Hero" 
             className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/80 to-background/60" />
+          /> */}
+          <div className="absolute inset-0 bg-gradient-to-r from-background/80 to-background/60"  />
         </div>
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in-up">
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-glow">
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-glow text-brevo-brand">
                 Welcome
               </span>
               <br />
@@ -215,10 +215,10 @@ const HomePage = () => {
                     </div>
                     {active.map((quiz) => (
                       <Card key={quiz.id} className="card-glass p-6 border-primary/20">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                        <div className="flex items-center justify-between flex-wrap">
+                          <div className="flex-1 mb-4 md:mb-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                              <h3 className="text-lg font-semibold text-left">{quiz.title}</h3>
                               {quiz.hasAttempted && (
                                 <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                                   <CheckCircle className="w-3 h-3" />
@@ -243,7 +243,7 @@ const HomePage = () => {
                           <Button
                             onClick={() => startQuiz(quiz)}
                             disabled={quiz.hasAttempted}
-                            className="ml-4"
+                            className="ml-0 md:ml-4 w-full md:w-auto"
                             variant={quiz.hasAttempted ? "secondary" : "default"}
                           >
                             <Play className="w-4 h-4 mr-2" />
@@ -268,10 +268,10 @@ const HomePage = () => {
                       const notStarted = !Number.isNaN(schedMs) && Date.now() < schedMs;
                       return (
                         <Card key={quiz.id} className="card-glass p-6 border-amber-200 dark:border-amber-800">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between flex-wrap">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="text-lg font-semibold">{quiz.title}</h3>
+                                <h3 className="text-lg font-semibold text-left">{quiz.title}</h3>
                                 <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-full text-sm">
                                   <Clock className="w-3 h-3" />
                                   Scheduled
@@ -280,12 +280,12 @@ const HomePage = () => {
                               {quiz.description && (
                                 <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
                               )}
-                              <div className="flex gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
+                              <div className="gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1 w-full mb-4 md:mb-0">
                                   <Users className="w-4 h-4" />
                                   <span>{quiz.totalQuestions} Questions</span>
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 w-full mb-4 md:mb-0">
                                   <Clock className="w-4 h-4" />
                                   <span>Starts at {quiz.scheduledAt ? new Date(quiz.scheduledAt).toLocaleString() : 'TBA'}</span>
                                 </div>
@@ -294,7 +294,7 @@ const HomePage = () => {
                             <Button
                               onClick={() => startQuiz(quiz)}
                               disabled={quiz.hasAttempted || notStarted}
-                              className="ml-4"
+                              className="ml-0 md:ml-4 w-full md:w-auto"
                               variant={notStarted ? "outline" : (quiz.hasAttempted ? "secondary" : "default")}
                             >
                               <Play className="w-4 h-4 mr-2" />
@@ -462,7 +462,7 @@ const HomePage = () => {
                   <Twitter className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-3">Share on Twitter</h3>
+                  <h3 className="text-lg font-semibold mb-3">Share on X (Twitter)</h3>
                   <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge"

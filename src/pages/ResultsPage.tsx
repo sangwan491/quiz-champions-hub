@@ -42,7 +42,7 @@ const ResultsPage = () => {
   };
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-hero">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-8">
           <div className="animate-celebration mb-4">

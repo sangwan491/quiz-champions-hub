@@ -7,8 +7,9 @@
 @layer base {
   :root {
     /* Core Background & Text */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 174 50% 3.9%;
+    /* --foreground: 0 0% 98%; */
+    --foreground: 88 59.89% 88%;
 
     /* Card System */
     --card: 174 85% 4;
@@ -16,6 +17,7 @@
 
     /* Primary Brand - Forest Green */
     --primary: 174.4 89.16% 23.48%;
+    /* --primary: 262 52% 47%; */
     --primary-foreground: 0 0% 98%;
     --primary-glow: 120 70% 60%;
 
@@ -171,7 +173,7 @@
 .text-brevo-brand {
   color: #57deac;
 }
-.bg-header {
+.bg-header, .bg-home-section {
 background-color: #011513;
 }
 /* .bg-body {
@@ -179,6 +181,9 @@ background-color: #011513;
 } */
 .text-primary {
   color: #57deab;
+}
+.text-secondary {
+  color: #e9fce1;
 }
 /* .bg-primary{
   background-color:hsl(174.4deg 89.16% 23.48%);
@@ -189,12 +194,26 @@ background-color: #011513;
 .btn-hero {
   background-image: none;
 }
-.bg-home{
+/* .bg-home{
   background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('./assets/bg-hero.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+} */
+.bg-home {
+  background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5));
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+ .bg-home-hero {
+    background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5)), url(/src/assets/bg-hero.jpg);
+    background-size: 100%;
+    background-position: left center;
+    background-repeat: repeat;
+    background-attachment: fixed;
 }
 .bg-card {
   z-index: 10;
@@ -205,6 +224,16 @@ background-color: #011513;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+}
+.bg-hero-card {
+  background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5)), url('./assets/bg-hero.jpg');
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 10;
+}
+.home-card {
+  background: none;
 }
 @media screen and (max-width: 680px) {
   /* .bg-hero{
@@ -225,18 +254,32 @@ background-color: #011513;
 }
 @media screen and (max-width: 680px) {
   .bg-brevo-brand {
-    background: url(/src/assets/brevo-rocket.png);
+    background: url('./assets/brevo-rocket.png');
     background-size: 40%;
     background-position: center;
     background-repeat: no-repeat;
     width: 100%;
     height: 170px;
-    top:55px;
     left: 0;
     z-index: 1;
 }
 .bg-brevo-brand-landing {
   background-size: 40%;
-  top:90px;
+  top: calc(100vh - 265px);
 }
+.bg-brevo-brand-login {
+  top: calc(100vh - 230px);
+}
+}
+@media screen and (max-width: 380px) {
+  .bg-brevo-brand {
+    background: none;
+  }
+}
+.login-page-container {
+  width: calc(100vw - 32px);
+  align-items: flex-start;
+}
+.social-bg {
+  background-color: #081c1a;
 }

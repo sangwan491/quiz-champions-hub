@@ -207,8 +207,8 @@ const LeaderboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen  p-6">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen  p-2 py-6">
+      <div className="container p-4 mx-auto max-w-4xl">
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-brevo-brand mb-2">

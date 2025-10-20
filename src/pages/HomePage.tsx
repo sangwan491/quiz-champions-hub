@@ -166,8 +166,8 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
+      <section className="relative py-10 overflow-hidden">
+        <div className="absolute inset-0 opacity-20 bg-home">
           {/* <img 
             src="@/assets/quiz-hero.jpg" 
             alt="Quiz Hero" 
@@ -178,7 +178,7 @@ const HomePage = () => {
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in-up">
+            <h1 className="text-4xl md:text-7xl font-bold mb-6 animate-fade-in-up">
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-glow text-brevo-brand">
                 Welcome
               </span>
@@ -186,7 +186,7 @@ const HomePage = () => {
               <span className="text-foreground">{user.name}!</span>
             </h1>
             
-            <p className="text-xl text-muted-foreground mb-8 animate-fade-in-up [animation-delay:0.2s]">
+            <p className="text-base text-muted-foreground mb-8 animate-fade-in-up [animation-delay:0.2s]">
               {active.length > 0 
                 ? `${active.length} active quiz${active.length > 1 ? 'es' : ''} available! Test your knowledge and compete for the top spot!`
                 : completed.length > 0
@@ -207,18 +207,18 @@ const HomePage = () => {
               <div className="max-w-2xl mx-auto mb-8 space-y-8 animate-fade-in-up [animation-delay:0.4s]">
                 {/* Active Quizzes Section */}
                 {active.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="space-y-6">
+                    {/* <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
                       <Zap className="w-5 h-5 text-primary" />
                       <h3 className="font-semibold text-primary">Active Quizzes</h3>
                       <span className="ml-auto text-sm text-muted-foreground">{active.length} available</span>
-                    </div>
+                    </div> */}
                     {active.map((quiz) => (
-                      <Card key={quiz.id} className="card-glass p-6 border-primary/20">
+                      <Card key={quiz.id} className="card-glass p-6 border-primary/20 bg-hero-card">
                         <div className="flex items-center justify-between flex-wrap">
-                          <div className="flex-1 mb-4 md:mb-0">
+                          <div className="flex-1 mb-6 md:mb-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-semibold text-left">{quiz.title}</h3>
+                              <h3 className="text-lg font-semibold text-left text-secondary">{quiz.title}</h3>
                               {quiz.hasAttempted && (
                                 <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                                   <CheckCircle className="w-3 h-3" />
@@ -226,9 +226,9 @@ const HomePage = () => {
                                 </div>
                               )}
                             </div>
-                            {quiz.description && (
+                            {/* {quiz.description && (
                               <p className="text-sm text-muted-foreground mb-3 text-left">{quiz.description}</p>
-                            )}
+                            )} */}
                             <div className="flex gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Users className="w-4 h-4" />
@@ -383,9 +383,9 @@ const HomePage = () => {
       </section>
 
       {/* Brevo Ecosystem Section */}
-      <section className="py-20">
+      <section className="py-20 bg-home-section">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">
+          <h2 className="text-3xl font-bold text-center text-brevo-brand mb-4">
             Discover Brevo
           </h2>
           <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
@@ -398,9 +398,9 @@ const HomePage = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
                   <Users className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Join Our Team</h3>
+                <h3 className="text-xl font-semibold mb-3 text-foreground">Join Our Team</h3>
                 <p className="text-muted-foreground mb-4">Explore exciting career opportunities and be part of our growing team</p>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full bg-primary">
                   <a href="https://www.brevo.com/careers/open-positions/" target="_blank" rel="noopener noreferrer">
                     View Open Positions
                   </a>
@@ -413,9 +413,9 @@ const HomePage = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
                   <Zap className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Brevo Platform</h3>
+                <h3 className="text-xl font-semibold mb-3 text-foreground">Brevo Platform</h3>
                 <p className="text-muted-foreground mb-4">Discover our all-in-one CRM suite for email, SMS, chat, and more</p>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full bg-primary">
                   <a href="https://www.brevo.com/" target="_blank" rel="noopener noreferrer">
                     Explore Brevo
                   </a>
@@ -428,9 +428,9 @@ const HomePage = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
                   <Brain className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Engineering Blog</h3>
+                <h3 className="text-xl font-semibold mb-3 text-foreground">Engineering Blog</h3>
                 <p className="text-muted-foreground mb-4">Read about our technical insights, innovations, and engineering culture</p>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full bg-primary">
                   <a href="https://engineering.brevo.com/" target="_blank" rel="noopener noreferrer">
                     Read Our Blog
                   </a>
@@ -442,10 +442,10 @@ const HomePage = () => {
       </section>
 
       {/* Social Sharing Section */}
-      <section className="py-20 bg-muted/30">
+      <section className="py-20 bg-muted/30 social-bg">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">
+            <h2 className="text-3xl font-bold mb-4 text-brevo-brand">
               Share Your Experience
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -462,7 +462,7 @@ const HomePage = () => {
                   <Twitter className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-3">Share on X (Twitter)</h3>
+                  <h3 className="text-lg font-semibold mb-3 text-foreground">Share on X (Twitter)</h3>
                   <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge"
@@ -511,7 +511,7 @@ const HomePage = () => {
                   <Linkedin className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-3">Share on LinkedIn</h3>
+                  <h3 className="text-lg font-semibold mb-3 text-foreground">Share on LinkedIn</h3>
                   <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       "Excited to participate in the Brevo Quiz Challenge at React India 2025! It's been a great way to test my knowledge while learning about Brevo's innovative CRM platform and their engineering culture. Check out their open positions and engineering insights! #ReactIndia2025 #BrevoQuiz #TechCommunity"

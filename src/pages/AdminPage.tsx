@@ -504,13 +504,13 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-inner-page">
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-2 ">
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-brevo-brand">
                 Admin Panel
               </span>
             </h1>
@@ -552,7 +552,7 @@ const AdminPage = () => {
                 </Select>
               </div>
               
-              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero" type="button">
+              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero shadow-none" type="button">
                 <Plus className="w-4 h-4 mr-2" />
                 New Quiz
               </Button>
@@ -625,7 +625,7 @@ const AdminPage = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button onClick={startAddingQuestion} className="btn-hero" type="button">
+                    <Button onClick={startAddingQuestion} className="btn-hero shadow-none" type="button">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Question
                     </Button>

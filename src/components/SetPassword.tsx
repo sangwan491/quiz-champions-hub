@@ -97,7 +97,6 @@ const SetPassword = ({ user, onPasswordSet, onBack }: SetPasswordProps) => {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
                 className="pl-10 pr-10"
                 required
               />
@@ -123,7 +122,6 @@ const SetPassword = ({ user, onPasswordSet, onBack }: SetPasswordProps) => {
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
                 className="pl-10 pr-10"
                 required
               />

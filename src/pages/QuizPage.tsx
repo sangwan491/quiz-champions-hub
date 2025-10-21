@@ -434,7 +434,7 @@ const QuizPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-8 select-none">
+    <div className="min-h-screen py-8 select-none bg-hero">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Progress Header */}
         <div className="mb-8">

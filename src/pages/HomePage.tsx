@@ -214,7 +214,7 @@ const HomePage = () => {
                       <span className="ml-auto text-sm text-muted-foreground">{active.length} available</span>
                     </div> */}
                     {active.map((quiz) => (
-                      <Card key={quiz.id} className="card-glass p-6 border-primary/20 bg-hero-card">
+                      <Card key={quiz.id} className="card-glass p-6 border-primary/50 bg-hero-card">
                         <div className="flex items-center justify-between flex-wrap">
                           <div className="flex-1 mb-6 md:mb-0">
                             <div className="flex items-center gap-2 mb-2">

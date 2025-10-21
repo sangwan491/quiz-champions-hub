@@ -208,8 +208,11 @@ background-color: #011513;
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
+.bg-inner-page {
+  background: linear-gradient(rgb(6 23 21 / 50%), rgba(0, 0, 0, 0.5));
+}
  .bg-home-hero {
-    background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5)), url(/src/assets/bg-hero.jpg);
+    background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5)), url('./assets/bg-hero.jpg');
     background-size: 100%;
     background-position: left center;
     background-repeat: repeat;
@@ -282,4 +285,10 @@ background-color: #011513;
 }
 .social-bg {
   background-color: #081c1a;
+}
+.border-green-500 {
+  border-color: #009688;
+}
+.text-green-700 {
+  color: #009688;
 }

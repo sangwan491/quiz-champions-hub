@@ -207,8 +207,8 @@ const LeaderboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen  p-2 py-6">
-      <div className="container p-4 mx-auto max-w-4xl">
+    <div className="min-h-screen  p-2 py-6 bg-inner-page">
+      <div className="container p-4 mx-auto max-w-4xl ">
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-brevo-brand mb-2">
@@ -265,7 +265,7 @@ const LeaderboardPage = () => {
 
         {/* My Stats */}
         {myResult && (
-          <Card className="card-glass p-4 mb-6 animate-fade-in-up">
+          <Card className="card-glass p-4 mb-6 animate-fade-in-up bg-hero-card">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Your Position</div>
@@ -287,13 +287,13 @@ const LeaderboardPage = () => {
         {/* Stats Cards (no Average Time) */}
         {filter === 'all' && filteredResults.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card className="card-glass p-6 text-center animate-fade-in-up">
+            <Card className="card-glass p-6 text-center animate-fade-in-up bg-hero-card">
               <Trophy className="w-8 h-8 text-primary mx-auto mb-3" />
               <div className="text-2xl font-bold">{filteredResults.length}</div>
               <p className="text-sm text-muted-foreground">Total Players</p>
             </Card>
             
-            <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.1s]">
+            <Card className="card-glass p-6 text-center animate-fade-in-up [animation-delay:0.1s] bg-hero-card">
               <Target className="w-8 h-8 text-secondary mx-auto mb-3" />
               <div className="text-2xl font-bold">
                 {Math.round(filteredResults.reduce((acc, r) => acc + r.score, 0) / filteredResults.length)}
@@ -306,7 +306,7 @@ const LeaderboardPage = () => {
         {/* Leaderboard */}
         <div className="space-y-4">
           {paginatedResults.length === 0 ? (
-            <Card className="card-glass p-8 text-center">
+            <Card className="card-glass p-8 text-center bg-hero-card">
               <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">
                 {filter === 'all' ? 'No results yet' : `No results for ${filter}`}

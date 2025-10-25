@@ -488,16 +488,14 @@ const HomePage = () => {
                     <Button
                       size="sm"
                       className="flex-1"
-                      asChild
+                      onClick={() => {
+                        const tweetText = "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025";
+                        const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+                        window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+                      }}
                     >
-                      <a 
-                        href="https://twitter.com/intent/tweet?text=Joined%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20Excited%20to%20see%20Brevo%20as%20a%20Gold%20Sponsor%2C%20empowering%20businesses%20with%20AI-driven%20Email%20Marketing%20%26%20CRM.%20%23BrevoAtReactIndia%20%23TechChallenge%20%23Innovation%20%23Brevo%20%23AI%20%23ReactIndia2025"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Share className="w-4 h-4 mr-2" />
-                        Tweet
-                      </a>
+                      <Share className="w-4 h-4 mr-2" />
+                      Tweet
                     </Button>
                   </div>
                 </div>
@@ -537,16 +535,14 @@ const HomePage = () => {
                     <Button
                       size="sm"
                       className="flex-1"
-                      asChild
+                      onClick={() => {
+                        const linkedinText = "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025";
+                        const linkedinUrl = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(linkedinText)}`;
+                        window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
+                      }}
                     >
-                      <a 
-                        href="https://www.linkedin.com/sharing/share-offsite/?url=https://www.brevo.com&summary=Joined%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20Excited%20to%20see%20Brevo%20as%20a%20Gold%20Sponsor%2C%20empowering%20businesses%20with%20AI-driven%20Email%20Marketing%20%26%20CRM.%20%23BrevoAtReactIndia%20%23TechChallenge%20%23Innovation%20%23Brevo%20%23AI%20%23ReactIndia2025"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Share className="w-4 h-4 mr-2" />
-                        Share
-                      </a>
+                      <Share className="w-4 h-4 mr-2" />
+                      Share
                     </Button>
                   </div>
                 </div>

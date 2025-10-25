@@ -354,6 +354,39 @@ export const api = {
     if (!response.ok) throw new Error('Failed to reset quiz leaderboard');
   },
 
+  // User Management endpoints
+  getAllUsers: async (): Promise<Array<User & { isAdmin: boolean }>> => {
+    return fetchJson(`${API_BASE}/admin/users`, {
+      headers: auth.getHeaders(),
+    });
+  },
+
+  resetUserPassword: async (userId: string, newPassword: string): Promise<void> => {
+    return fetchJson(`${API_BASE}/admin/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: auth.getHeaders(),
+      body: JSON.stringify({ password: newPassword }),
+    });
+  },
+
+  deleteUser: async (userId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: auth.getHeaders(),
+    });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to delete user');
+  },
+
+  getUserScores: async (userId: string): Promise<QuizResult[]> => {
+    return fetchJson(`${API_BASE}/admin/users/${userId}/scores`, {
+      headers: auth.getHeaders(),
+    });
+  },
+
   // Get active quiz for players
   getActiveQuizzes: async (): Promise<Quiz[]> => {
     const response = await fetch(`${API_BASE}/quizzes/active`);

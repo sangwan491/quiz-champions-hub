@@ -490,6 +490,139 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Admin: Get all users
+    if (path === "/api/admin/users" && req.method === "GET") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const users = await rest(`/users?select=id,name,linkedin_profile,email,phone,registered_at,is_admin`);
+      
+      return json(
+        (users || []).map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          linkedinProfile: u.linkedin_profile || "",
+          email: u.email || undefined,
+          phone: u.phone || undefined,
+          registeredAt: u.registered_at,
+          isAdmin: !!u.is_admin,
+        }))
+      );
+    }
+
+    // Admin: Reset user password
+    if (path.match(/^\/api\/admin\/users\/[^/]+\/reset-password$/) && req.method === "POST") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const userId = path.split("/")[4];
+      const body = await parseJson<{ password: string }>(req);
+
+      if (!body.password) {
+        return json({ error: "Password is required" }, { status: 400 });
+      }
+
+      if (body.password.length < 6) {
+        return json(
+          { error: "Password must be at least 6 characters" },
+          { status: 400 }
+        );
+      }
+
+      // Get target user
+      const users = await rest(`/users?select=*&id=eq.${userId}`);
+      const targetUser = users?.[0];
+
+      if (!targetUser) {
+        return json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Prevent modifying admin users
+      if (targetUser.is_admin) {
+        return json(
+          { error: "Cannot reset password for admin users" },
+          { status: 403 }
+        );
+      }
+
+      // Hash and update password
+      const passwordHash = await hashPassword(body.password);
+      await rest(`/users?id=eq.${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          password_hash: passwordHash,
+          is_password_set: true,
+        }),
+      });
+
+      return json({ message: "Password reset successfully" });
+    }
+
+    // Admin: Delete user
+    if (path.match(/^\/api\/admin\/users\/[^/]+$/) && req.method === "DELETE") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const userId = path.split("/")[4];
+
+      // Get target user
+      const users = await rest(`/users?select=*&id=eq.${userId}`);
+      const targetUser = users?.[0];
+
+      if (!targetUser) {
+        return json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Prevent deleting admin users
+      if (targetUser.is_admin) {
+        return json(
+          { error: "Cannot delete admin users" },
+          { status: 403 }
+        );
+      }
+
+      // Delete user's quiz sessions first (cascade)
+      await rest(`/quiz_sessions?user_id=eq.${userId}`, { method: "DELETE" });
+
+      // Delete user
+      await rest(`/users?id=eq.${userId}`, { method: "DELETE" });
+
+      return json({ message: "User deleted successfully" });
+    }
+
+    // Admin: Get user scores
+    if (path.match(/^\/api\/admin\/users\/[^/]+\/scores$/) && req.method === "GET") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const userId = path.split("/")[4];
+
+      // Get user to verify they exist
+      const users = await rest(`/users?select=*&id=eq.${userId}`);
+      if (!users?.[0]) {
+        return json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Get all quiz sessions for this user
+      const sessions = await rest(
+        `/quiz_sessions?select=*&user_id=eq.${userId}&completed_at=not.is.null&order=completed_at.desc`
+      );
+
+      return json(
+        (sessions || []).map((s: any) => ({
+          id: s.id,
+          userId: s.user_id,
+          quizId: s.quiz_id,
+          playerName: users[0].name,
+          score: Number(s.score || 0),
+          totalQuestions: Number(s.total_questions || 0),
+          completedAt: s.completed_at,
+          timeSpent: Number(s.time_spent || 0),
+          phone: users[0].phone,
+        }))
+      );
+    }
+
     // Questions - bank
     if (path === "/api/questions") {
       if (req.method === "GET") {

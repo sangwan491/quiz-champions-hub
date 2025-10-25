@@ -12,6 +12,7 @@ import { api, auth, type Question, type Quiz, type QuizResult } from "@/data/que
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DateTimePicker } from "@/components/DateTimePicker";
+import { UserManagement } from "@/components/UserManagement";
 
 // Quiz Status Controls Component
 function QuizStatusControls({ quiz, onStatusChange }: { quiz: Quiz; onStatusChange: () => void }) {
@@ -519,10 +520,11 @@ const AdminPage = () => {
         </div>
 
         <Tabs defaultValue="quizzes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="quizzes">Quiz Management</TabsTrigger>
             <TabsTrigger value="status">Status & Publishing</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="users">User Management</TabsTrigger>
           </TabsList>
 
           {/* Quiz Management Tab */}
@@ -1206,6 +1208,11 @@ const AdminPage = () => {
                 </div>
               </div>
             </Card>
+          </TabsContent>
+
+          {/* User Management Tab */}
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
           </TabsContent>
         </Tabs>
       </div>

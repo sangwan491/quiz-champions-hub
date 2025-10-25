@@ -492,9 +492,11 @@ Deno.serve(async (req: Request) => {
 
     // Admin: Get all users
     if (path === "/api/admin/users" && req.method === "GET") {
+      console.log("[Admin Users] Fetching all users");
       const admin = await requireAdmin(req);
       if (admin instanceof Response) return admin;
 
+      console.log("[Admin Users] Admin verified, fetching from database");
       const users = await rest(`/users?select=id,name,linkedin_profile,email,phone,registered_at,is_admin`);
       
       return json(

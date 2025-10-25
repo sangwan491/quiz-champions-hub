@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
-import { LogIn, Phone, Lock, Eye, EyeOff } from "lucide-react";
+import { Phone, Lock, Eye, EyeOff } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface LoginFormProps {
   onLoginSuccess: (user: User, token: string) => void;
@@ -143,6 +143,16 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
             </div>
           </div>
 
+                    <p className="text-xs text-muted-foreground mt-2">
+            By continuing, you agree to participate in the quiz session.{" "}
+            <Link
+              to="/rules"
+              className="text-primary hover:underline font-medium"
+            >
+              Rules and Regulations
+            </Link>
+          </p>
+
           <Button 
             type="submit" 
             className="w-full btn-hero"
@@ -161,6 +171,9 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
             >
               Register here
             </button>
+          </p>
+          <p className="text-xs text-muted-foreground mt-3">
+            Forgot your password? Feel free to contact the admin at the Brevo booth for reset or assistance.
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Trophy, Settings, Home, LogOut } from "lucide-react";
+import { Trophy, Settings, Home, LogOut, FileText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -115,6 +115,7 @@ const Header = () => {
           </Link>
 
           <nav className="flex items-center space-x-2">
+
             {/* Show navigation when user is logged in on all routes except during quiz/results */}
             {currentUser && !isQuizRoute && (
               <>
@@ -155,7 +156,17 @@ const Header = () => {
                 )}
               </>
             )}
-
+            {/* Always show Rules link (public access) */}
+            <Button
+              variant={isActive("/rules") ? "default" : "ghost"}
+              size="sm"
+              asChild
+            >
+              <Link to="/rules" className="flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Rules</span>
+              </Link>
+            </Button>
             {/* Right-aligned auth - show logout if user exists */}
             {currentUser && (
               <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2 ml-4">

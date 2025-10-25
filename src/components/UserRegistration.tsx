@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
-import { UserPlus, Linkedin, Mail, Phone } from "lucide-react";
+import { Linkedin, Mail, Phone, Gift } from "lucide-react";
 import SetPassword from "./SetPassword";
 import LoginForm from "./LoginForm";
+import { Link } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UserRegistrationProps {
   onUserRegistered: (user: User) => void;
@@ -21,12 +23,22 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
   const [linkedinProfile, setLinkedinProfile] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [agreeToRules, setAgreeToRules] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newUser, setNewUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!agreeToRules) {
+      toast({
+        title: "Agreement Required",
+        description: "Please agree to the rules and regulations to continue",
+        variant: "destructive"
+      });
+      return;
+    }
     
     if (!name.trim()) {
       toast({
@@ -190,7 +202,13 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground">
-              By continuing, you agree to participate in the quiz session
+              By continuing, you agree to participate in the quiz session.{" "}
+              <Link
+                to="/rules"
+                className="text-primary hover:underline font-medium"
+              >
+                Rules and Regulations
+              </Link>
             </p>
           </div>
         </div>
@@ -279,7 +297,22 @@ fill="#0c996e" stroke="none">
                 required
               />
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Should be valid and will be verified for prize distribution
+            </p>
           </div>
+
+          {/* Info message about completing profile */}
+          <Alert className="bg-primary/5 border-primary/20">
+            <Gift className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm">
+              <span className="font-medium text-primary">Complete your profile for extra goodies!</span>
+              <br />
+              <span className="text-muted-foreground">
+                Winners with complete profiles (email & LinkedIn) will receive additional prizes and perks.
+              </span>
+            </AlertDescription>
+          </Alert>
 
           <div>
             <Label htmlFor="email">Email (optional)</Label>
@@ -308,8 +341,30 @@ fill="#0c996e" stroke="none">
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Optional - helps us connect with you
+              Optional - Complete your profile to maximize your rewards!
             </p>
+          </div>
+
+          <div className="flex items-start space-x-2 pt-2">
+            <Checkbox
+              id="agreeToRules"
+              checked={agreeToRules}
+              onCheckedChange={(checked) => setAgreeToRules(checked === true)}
+              className="mt-1"
+            />
+            <label
+              htmlFor="agreeToRules"
+              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              By continuing, you agree to participate in the quiz session.{" "}
+              <Link
+                to="/rules"
+                className="text-primary hover:underline font-medium"
+                target="_blank"
+              >
+                Rules and Regulations
+              </Link>
+            </label>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -325,7 +380,7 @@ fill="#0c996e" stroke="none">
             <Button 
               type="submit" 
               className="flex-1 btn-hero"
-              disabled={isLoading}
+              disabled={isLoading || !agreeToRules}
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>

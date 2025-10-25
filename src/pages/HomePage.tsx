@@ -465,7 +465,7 @@ const HomePage = () => {
                   <h3 className="text-lg font-semibold mb-3 text-foreground">Share on X (Twitter)</h3>
                   <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge"
+                      "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025"
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -474,7 +474,7 @@ const HomePage = () => {
                       size="sm"
                       className="flex-1"
                       onClick={() => {
-                        const tweetText = "Just participated in the Brevo Quiz Challenge @ React India 2025! 🚀 Testing my tech knowledge and discovering amazing opportunities @Brevo #BrevoQuiz #ReactIndia2025 #TechChallenge";
+                        const tweetText = "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025";
                         navigator.clipboard.writeText(tweetText);
                         toast({
                           title: "Copied!",
@@ -491,7 +491,7 @@ const HomePage = () => {
                       asChild
                     >
                       <a 
-                        href="https://twitter.com/intent/tweet?text=Just%20participated%20in%20the%20Brevo%20Quiz%20Challenge%20%40%20React%20India%202025!%20%F0%9F%9A%80%20Testing%20my%20tech%20knowledge%20and%20discovering%20amazing%20opportunities%20%40Brevo%20%23BrevoQuiz%20%23ReactIndia2025%20%23TechChallenge"
+                        href="https://twitter.com/intent/tweet?text=Joined%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20Excited%20to%20see%20Brevo%20as%20a%20Gold%20Sponsor%2C%20empowering%20businesses%20with%20AI-driven%20Email%20Marketing%20%26%20CRM.%20%23BrevoAtReactIndia%20%23TechChallenge%20%23Innovation%20%23Brevo%20%23AI%20%23ReactIndia2025"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -514,7 +514,7 @@ const HomePage = () => {
                   <h3 className="text-lg font-semibold mb-3 text-foreground">Share on LinkedIn</h3>
                   <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      "Excited to participate in the Brevo Quiz Challenge at React India 2025! It's been a great way to test my knowledge while learning about Brevo's innovative CRM platform and their engineering culture. Check out their open positions and engineering insights! #ReactIndia2025 #BrevoQuiz #TechCommunity"
+                      "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025"
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -523,7 +523,7 @@ const HomePage = () => {
                       size="sm"
                       className="flex-1"
                       onClick={() => {
-                        const linkedinText = "Excited to participate in the Brevo Quiz Challenge at React India 2025! It's been a great way to test my knowledge while learning about Brevo's innovative CRM platform and their engineering culture. Check out their open positions and engineering insights! #ReactIndia2025 #BrevoQuiz #TechCommunity";
+                        const linkedinText = "Joined the Brevo Quiz Challenge at React India 2025! Excited to see Brevo as a Gold Sponsor, empowering businesses with AI-driven Email Marketing & CRM. #BrevoAtReactIndia #TechChallenge #Innovation #Brevo #AI #ReactIndia2025";
                         navigator.clipboard.writeText(linkedinText);
                         toast({
                           title: "Copied!",
@@ -540,7 +540,7 @@ const HomePage = () => {
                       asChild
                     >
                       <a 
-                        href="https://www.linkedin.com/sharing/share-offsite/?url=https://www.brevo.com&summary=Excited%20to%20participate%20in%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20It's%20been%20a%20great%20way%20to%20test%20my%20knowledge%20while%20learning%20about%20Brevo's%20innovative%20CRM%20platform%20and%20their%20engineering%20culture.%20Check%20out%20their%20open%20positions%20and%20engineering%20insights!%20%23ReactIndia2025%20%23BrevoQuiz%20%23TechCommunity"
+                        href="https://www.linkedin.com/sharing/share-offsite/?url=https://www.brevo.com&summary=Joined%20the%20Brevo%20Quiz%20Challenge%20at%20React%20India%202025!%20Excited%20to%20see%20Brevo%20as%20a%20Gold%20Sponsor%2C%20empowering%20businesses%20with%20AI-driven%20Email%20Marketing%20%26%20CRM.%20%23BrevoAtReactIndia%20%23TechChallenge%20%23Innovation%20%23Brevo%20%23AI%20%23ReactIndia2025"
                         target="_blank"
                         rel="noopener noreferrer"
                       >

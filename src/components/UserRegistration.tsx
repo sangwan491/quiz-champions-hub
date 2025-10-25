@@ -306,10 +306,10 @@ fill="#0c996e" stroke="none">
           <Alert className="bg-primary/5 border-primary/20">
             <Gift className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
-              <span className="font-medium text-primary">Complete your profile for extra goodies!</span>
+              <span className="font-medium text-primary">Complete your profile to maximize your rewards!</span>
               <br />
               <span className="text-muted-foreground">
-                Winners with complete profiles (email & LinkedIn) will receive additional prizes and perks.
+                Winners with complete profiles (email & LinkedIn) will receive maximized prizes and perks.
               </span>
             </AlertDescription>
           </Alert>
@@ -340,9 +340,6 @@ fill="#0c996e" stroke="none">
                 className="pl-10"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Optional - Complete your profile to maximize your rewards!
-            </p>
           </div>
 
           <div className="flex items-start space-x-2 pt-2">

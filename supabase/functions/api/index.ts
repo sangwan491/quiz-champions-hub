@@ -1075,20 +1075,12 @@ Deno.serve(async (req: Request) => {
       // Verify quiz exists and is available to start
       const quiz = await fetchQuizRaw(quizId);
       if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-      if (quiz.status === "inactive") {
-        return json({ error: "Quiz is not active" }, { status: 400 });
-      }
-      if (quiz.status === "completed") {
-        return json({ error: "Quiz has ended" }, { status: 400 });
-      }
-      if (quiz.status === "scheduled") {
-        const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
-        if (!schedAt || Date.now() < schedAt.getTime()) {
-          return json(
-            { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
-            { status: 400 }
-          );
-        }
+      // Only quizzes explicitly set to 'active' by admin are playable
+      if (quiz.status !== "active") {
+        const message = quiz.status === "completed"
+          ? "Quiz has ended"
+          : "Quiz is not active";
+        return json({ error: message }, { status: 400 });
       }
 
       // Preload safe quiz payload without answers
@@ -1241,18 +1233,12 @@ Deno.serve(async (req: Request) => {
 
         const quiz = await fetchQuizRaw(body.quizId);
         if (!quiz) return json({ error: "Quiz not found" }, { status: 404 });
-        if (quiz.status === "inactive")
-          return json({ error: "Quiz is not active" }, { status: 400 });
-        if (quiz.status === "completed")
-          return json({ error: "Quiz has ended" }, { status: 400 });
-        if (quiz.status === "scheduled") {
-          const schedAt = quiz.scheduled_at ? new Date(quiz.scheduled_at) : null;
-          if (!schedAt || Date.now() < schedAt.getTime()) {
-            return json(
-              { error: "Quiz is scheduled and not started yet", scheduledAt: quiz.scheduled_at || null },
-              { status: 400 }
-            );
-          }
+        // Only quizzes explicitly set to 'active' by admin are playable
+        if (quiz.status !== "active") {
+          const message = quiz.status === "completed"
+            ? "Quiz has ended"
+            : "Quiz is not active";
+          return json({ error: message }, { status: 400 });
         }
 
         // Find unique session - REQUIRED to exist (user must have started)

@@ -264,8 +264,6 @@ const HomePage = () => {
                       <span className="ml-auto text-sm text-amber-600 dark:text-amber-400">{scheduled.length} upcoming</span>
                     </div>
                     {scheduled.map((quiz) => {
-                      const schedMs = quiz.scheduledAt ? new Date(quiz.scheduledAt).getTime() : NaN;
-                      const notStarted = !Number.isNaN(schedMs) && Date.now() < schedMs;
                       return (
                         <Card key={quiz.id} className="card-glass p-6 border-amber-200 dark:border-amber-800">
                           <div className="flex items-center justify-between flex-wrap">
@@ -293,12 +291,12 @@ const HomePage = () => {
                             </div>
                             <Button
                               onClick={() => startQuiz(quiz)}
-                              disabled={quiz.hasAttempted || notStarted}
+                              disabled={true}
                               className="ml-0 md:ml-4 w-full md:w-auto"
-                              variant={notStarted ? "outline" : (quiz.hasAttempted ? "secondary" : "default")}
+                              variant={"outline"}
                             >
                               <Play className="w-4 h-4 mr-2" />
-                              {notStarted ? "Starts Soon" : (quiz.hasAttempted ? "Completed" : "Start Quiz")}
+                              {"Starts Soon"}
                             </Button>
                           </div>
                         </Card>

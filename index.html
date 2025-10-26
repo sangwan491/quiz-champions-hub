@@ -21,5 +21,39 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove Lovable badge in production
+      (function() {
+        const removeBadge = () => {
+          const badge = document.getElementById('lovable-badge');
+          if (badge) {
+            badge.remove();
+          }
+        };
+        
+        // Try immediately
+        removeBadge();
+        
+        // Try after DOM is loaded
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', removeBadge);
+        }
+        
+        // Try after a short delay (in case badge loads later)
+        setTimeout(removeBadge, 100);
+        setTimeout(removeBadge, 500);
+        setTimeout(removeBadge, 1000);
+        
+        // Watch for badge being added dynamically
+        const observer = new MutationObserver(() => {
+          removeBadge();
+        });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+      })();
+    </script>
   </body>
 </html>

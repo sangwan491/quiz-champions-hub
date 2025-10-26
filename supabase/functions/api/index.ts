@@ -29,7 +29,7 @@ const json = (body: unknown, init: ResponseInit = {}) =>
 const getenv = (key: string): string | undefined =>
   (globalThis as any).Deno?.env?.get?.(key);
 const supabaseUrl = getenv("SUPABASE_URL");
-const serviceKey = getenv("SUPABASE_SERVICE_ROLE_KEY");
+const serviceKey = getenv("NEW_SECRET_KEY");
 const anonKey = getenv("PROJECT_SECRET_KEY");
 const apiKey = serviceKey || anonKey || "";
 

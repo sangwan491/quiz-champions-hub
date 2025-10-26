@@ -481,7 +481,7 @@ export function UserManagement() {
                   <Card key={score.id}>
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                           <h4 className="font-semibold">Quiz #{score.quizId}</h4>
                           <p className="text-sm text-muted-foreground">
                             Completed {new Date(score.completedAt).toLocaleString()}
@@ -490,16 +490,6 @@ export function UserManagement() {
                         <Badge variant="default" className="text-lg px-4 py-1">
                           {score.score} pts
                         </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Questions:</span>{' '}
-                          <span className="font-medium">{score.totalQuestions}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Time Spent:</span>{' '}
-                          <span className="font-medium">{Math.floor(score.timeSpent / 60)}m {score.timeSpent % 60}s</span>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>

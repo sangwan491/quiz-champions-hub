@@ -6,13 +6,23 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Trophy, Clock, Users } from "luci
 const RulesPage = () => {
   const navigate = useNavigate();
 
+  const handleBack = () => {
+    // Check if there's history to go back to
+    if (globalThis.history.length > 1) {
+      navigate(-1);
+    } else {
+      // If no history (e.g., opened in new tab), go to home
+      navigate('/');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -210,7 +220,7 @@ const RulesPage = () => {
 
         <div className="mt-8 text-center">
           <Button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="btn-hero"
             size="lg"
           >

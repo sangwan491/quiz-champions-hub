@@ -8,7 +8,7 @@ import { api, type User } from "@/data/questions";
 import { Linkedin, Mail, Phone, Gift } from "lucide-react";
 import SetPassword from "./SetPassword";
 import LoginForm from "./LoginForm";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UserRegistrationProps {
@@ -27,6 +27,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [newUser, setNewUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +157,12 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
         <div className="min-h-screen">
         <div className="px-4 py-6 w-full max-w-md animate-fade-in-up home-card border-none md:border-1 md:mt-20">
           <div className="text-center mb-6">
-            <div className="w-16 h-16  rounded-full flex items-center justify-center mx-auto mb-4">
+            <button
+              onClick={() => navigate('/')}
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 hover:opacity-80 transition-opacity cursor-pointer"
+              type="button"
+              aria-label="Go to home page"
+            >
               {/* <UserPlus className="w-8 h-8 text-primary-foreground" /> */}
               <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
                 width="250.000000pt" height="250.000000pt" viewBox="0 0 250.000000 250.000000"
@@ -178,7 +184,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
                 </g>
               </svg>
 
-            </div>
+            </button>
             <h1 className="text-2xl font-bold mb-6 text-foreground">Welcome to Brevo Quiz Challenge!</h1>
             {/* <p className="text-muted-foreground">Join the ultimate React India 2025 quiz competition</p> */}
           </div>
@@ -357,7 +363,6 @@ fill="#0c996e" stroke="none">
               <Link
                 to="/rules"
                 className="text-primary hover:underline font-medium"
-                target="_blank"
               >
                 Rules and Regulations
               </Link>

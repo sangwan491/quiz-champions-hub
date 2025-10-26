@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SetPasswordProps {
   user: User;
@@ -88,6 +89,18 @@ const SetPassword = ({ user, onPasswordSet, onBack }: SetPasswordProps) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Important Warning Message */}
+          <Alert className="bg-amber-500/10 border-amber-500/50">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-sm">
+              <span className="font-medium text-amber-500">Please remember your password!</span>
+              <br />
+              <span className="text-muted-foreground">
+                Password can only be reset by admin at the Brevo booth.
+              </span>
+            </AlertDescription>
+          </Alert>
+
           <div>
             <Label htmlFor="password">Password *</Label>
             <div className="relative mt-1">

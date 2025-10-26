@@ -520,19 +520,19 @@ const AdminPage = () => {
         </div>
 
         <Tabs defaultValue="quizzes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="quizzes">Quiz Management</TabsTrigger>
-            <TabsTrigger value="status">Status & Publishing</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 gap-2">
+            <TabsTrigger value="quizzes" className="text-xs md:text-sm">Quiz Management</TabsTrigger>
+            <TabsTrigger value="status" className="text-xs md:text-sm">Status & Publishing</TabsTrigger>
+            <TabsTrigger value="leaderboard" className="text-xs md:text-sm">Leaderboard</TabsTrigger>
+            <TabsTrigger value="users" className="text-xs md:text-sm">User Management</TabsTrigger>
           </TabsList>
 
           {/* Quiz Management Tab */}
           <TabsContent value="quizzes" className="space-y-6">
             {/* Quiz Selection and Creation */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Label>Select Quiz:</Label>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 w-full md:w-auto">
+                <Label className="whitespace-nowrap">Select Quiz:</Label>
                 <Select 
                   value={selectedQuiz?.id || ""} 
                   onValueChange={(value) => {
@@ -541,7 +541,7 @@ const AdminPage = () => {
                     if (next) localStorage.setItem("adminSelectedQuizId", next.id);
                   }}
                 >
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="w-full md:w-64">
                     <SelectValue placeholder="Select a quiz" />
                   </SelectTrigger>
                   <SelectContent>
@@ -554,7 +554,7 @@ const AdminPage = () => {
                 </Select>
               </div>
               
-              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero shadow-none" type="button">
+              <Button onClick={() => setIsAddingQuiz(true)} className="btn-hero shadow-none w-full md:w-auto" type="button">
                 <Plus className="w-4 h-4 mr-2" />
                 New Quiz
               </Button>
@@ -607,13 +607,13 @@ const AdminPage = () => {
             {/* Selected Quiz Info */}
             {selectedQuiz && (
               <Card className="card-glass p-6">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                  <div className="w-full">
                     <h3 className="text-xl font-semibold mb-2">{selectedQuiz.title}</h3>
                     {selectedQuiz.description && (
                       <p className="text-muted-foreground mb-3">{selectedQuiz.description}</p>
                     )}
-                    <div className="flex gap-4 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 md:gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
                         {selectedQuiz.totalQuestions} Questions
@@ -626,8 +626,8 @@ const AdminPage = () => {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
-                    <Button onClick={startAddingQuestion} className="btn-hero shadow-none" type="button">
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <Button onClick={startAddingQuestion} className="btn-hero shadow-none flex-1 md:flex-none" type="button">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Question
                     </Button>
@@ -786,8 +786,8 @@ const AdminPage = () => {
                 
                 {filteredQuizQuestions.map((question, index) => (
                   <Card key={(question as Question).id} className="card-glass p-6 animate-fade-in-up" style={{animationDelay: `${index * 0.1}s`} }>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                      <div className="flex-1 w-full">
                         <div className="flex items-center gap-3 mb-3">
                           <span className="text-sm text-muted-foreground">+{question.positivePoints} / -{question.negativePoints} pts • {question.time}s</span>
                         </div>
@@ -1113,7 +1113,19 @@ const AdminPage = () => {
                         </div>
                       </div>
                     </div>
-                    <QuizStatusControls quiz={quiz} onStatusChange={loadData} />
+                    <div className="flex flex-col gap-2 w-full sm:w-auto">
+                      <QuizStatusControls quiz={quiz} onStatusChange={loadData} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteQuiz(quiz.id)}
+                        className="text-destructive hover:text-destructive w-full sm:w-auto"
+                        type="button"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Quiz
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))}

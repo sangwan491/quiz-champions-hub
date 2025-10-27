@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
 import { Phone, Lock, Eye, EyeOff } from "lucide-react";
@@ -16,8 +17,21 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberPassword, setRememberPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedPhone = localStorage.getItem("rememberedPhone");
+    const savedPassword = localStorage.getItem("rememberedPassword");
+    
+    if (savedPhone && savedPassword) {
+      setPhone(savedPhone);
+      setPassword(savedPassword);
+      setRememberPassword(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +69,15 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
     
     try {
       const result = await api.login(normalizedPhone.trim(), password);
+      
+      // Save or clear credentials based on checkbox
+      if (rememberPassword) {
+        localStorage.setItem("rememberedPhone", normalizedPhone);
+        localStorage.setItem("rememberedPassword", password);
+      } else {
+        localStorage.removeItem("rememberedPhone");
+        localStorage.removeItem("rememberedPassword");
+      }
       
       toast({
         title: "Welcome back!",
@@ -143,7 +166,21 @@ const LoginForm = ({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) => {
             </div>
           </div>
 
-                    <p className="text-xs text-muted-foreground mt-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="remember"
+              checked={rememberPassword}
+              onCheckedChange={(checked) => setRememberPassword(checked as boolean)}
+            />
+            <Label
+              htmlFor="remember"
+              className="text-sm font-normal cursor-pointer"
+            >
+              Remember password
+            </Label>
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-2">
             By continuing, you agree to participate in the quiz session.{" "}
             <Link
               to="/rules"

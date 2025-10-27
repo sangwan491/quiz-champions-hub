@@ -185,7 +185,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
               </svg>
 
             </button>
-            <h1 className="text-2xl font-bold mb-6 text-foreground">Welcome to Brevo Quiz Challenge!</h1>
+            <h1 className="text-2xl font-bold mb-6 text-foreground">Welcome</h1>
             {/* <p className="text-muted-foreground">Join the ultimate React India 2025 quiz competition</p> */}
           </div>
 

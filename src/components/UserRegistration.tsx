@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { api, type User } from "@/data/questions";
 import { Linkedin, Mail, Phone, Gift } from "lucide-react";
@@ -23,7 +22,6 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
   const [linkedinProfile, setLinkedinProfile] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [agreeToRules, setAgreeToRules] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newUser, setNewUser] = useState<User | null>(null);
   const { toast } = useToast();
@@ -31,15 +29,6 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!agreeToRules) {
-      toast({
-        title: "Agreement Required",
-        description: "Please agree to the rules and regulations to continue",
-        variant: "destructive"
-      });
-      return;
-    }
     
     if (!name.trim()) {
       toast({
@@ -313,10 +302,6 @@ fill="#0c996e" stroke="none">
             <Gift className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
               <span className="font-medium text-primary">Complete your profile to maximize your rewards!</span>
-              <br />
-              <span className="text-muted-foreground">
-                Winners with complete profiles (email & LinkedIn) will receive maximized prizes and perks.
-              </span>
             </AlertDescription>
           </Alert>
 
@@ -348,28 +333,7 @@ fill="#0c996e" stroke="none">
             </div>
           </div>
 
-          <div className="flex items-start space-x-2 pt-2">
-            <Checkbox
-              id="agreeToRules"
-              checked={agreeToRules}
-              onCheckedChange={(checked) => setAgreeToRules(checked === true)}
-              className="mt-1"
-            />
-            <label
-              htmlFor="agreeToRules"
-              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              By continuing, you agree to participate in the quiz session.{" "}
-              <Link
-                to="/rules"
-                className="text-primary hover:underline font-medium"
-              >
-                Rules and Regulations
-              </Link>
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4">
             <Button 
               type="button"
               onClick={() => setStep('choose')}
@@ -382,12 +346,24 @@ fill="#0c996e" stroke="none">
             <Button 
               type="submit" 
               className="flex-1 btn-hero"
-              disabled={isLoading || !agreeToRules}
+              disabled={isLoading}
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
         </form>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            By creating an account, you agree to our{" "}
+            <Link
+              to="/rules"
+              className="text-primary hover:underline font-medium"
+            >
+              Rules and Regulations
+            </Link>
+          </p>
+        </div>
    
         
       </div>

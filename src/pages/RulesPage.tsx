@@ -127,6 +127,38 @@ const RulesPage = () => {
             </div>
           </Card>
 
+          {/* Prizes and Rewards */}
+          <Card className="p-6 bg-primary/10 border-primary/30">
+            <div className="flex items-start gap-3 mb-4">
+              <Trophy className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+              <div>
+                <h2 className="text-2xl font-semibold mb-3 text-primary">Prizes and Rewards</h2>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Top performers on the leaderboard will be eligible for exciting prizes and rewards.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span><strong className="text-foreground">Winners with complete profiles (email & LinkedIn) will receive maximized prizes and perks.</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Prize distribution will occur at the Brevo booth during React India 2025.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Winners must be present at the event to claim their prizes.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Valid contact information (phone number) is required for prize verification and distribution.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+
           {/* Code of Conduct */}
           <Card className="p-6">
             <div className="flex items-start gap-3 mb-4">

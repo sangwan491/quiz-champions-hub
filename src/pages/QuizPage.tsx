@@ -312,7 +312,7 @@ const QuizPage = () => {
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
-    if (!currentQuestion || !quiz || showAnswer || isSubmitting) return;
+    if (!currentQuestion || !quiz) return;
     recordAnswer(answerIndex);
   };
 
@@ -531,10 +531,9 @@ const QuizPage = () => {
               {(currentQuestion as Question).options.map((option, index) => (
                 <button
                   key={index}
-                  type="button"
                   onClick={() => handleAnswerSelect(index)}
-                  disabled={showAnswer || isSubmitting}
-                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200 group hover-lift animate-slide-in-right disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`}
+                  disabled={showAnswer}
+                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200 group hover-lift animate-slide-in-right`}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-center gap-3">
@@ -572,12 +571,7 @@ const QuizPage = () => {
 
             {/* End Quiz Early */}
             <div className="pt-2 flex justify-end">
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={() => completeQuiz()} 
-                disabled={isSubmitting}
-              >
+              <Button variant="outline" onClick={() => completeQuiz()} disabled={isSubmitting}>
                 End Quiz
               </Button>
             </div>

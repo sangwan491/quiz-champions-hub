@@ -68,26 +68,18 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       return;
     }
 
-    // LinkedIn is now mandatory
-    if (!linkedinProfile.trim()) {
-      toast({
-        title: "LinkedIn Required",
-        description: "Please enter your LinkedIn profile URL",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const url = linkedinProfile.trim();
-    // Accept linkedin.com/in/ or company pages; require https and domain linkedin.com
-    const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+\/?$/i;
-    if (!linkedinRegex.test(url)) {
-      toast({
-        title: "Invalid LinkedIn URL",
-        description: "Use a full LinkedIn URL like https://www.linkedin.com/in/username",
-        variant: "destructive"
-      });
-      return;
+    if (linkedinProfile.trim()) {
+      const url = linkedinProfile.trim();
+      // Accept linkedin.com/in/ or company pages; require https and domain linkedin.com
+      const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+\/?$/i;
+      if (!linkedinRegex.test(url)) {
+        toast({
+          title: "Invalid LinkedIn URL",
+          description: "Use a full LinkedIn URL like https://www.linkedin.com/in/username",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -95,7 +87,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
     try {
       const user = await api.registerUser({
         name: name.trim(),
-        linkedinProfile: linkedinProfile.trim(),
+        linkedinProfile: linkedinProfile.trim() || undefined,
         email: email.trim() || undefined,
         phone: normalizedPhone,
       });
@@ -305,23 +297,8 @@ fill="#0c996e" stroke="none">
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="linkedin">LinkedIn Profile *</Label>
-            <div className="relative mt-1">
-              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="linkedin"
-                type="url"
-                value={linkedinProfile}
-                onChange={(e) => setLinkedinProfile(e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
-
-                    {/* Info message about completing profile */}
-         <Alert className="bg-primary/5 border-primary/20 mt-4">
+          {/* Info message about completing profile */}
+          <Alert className="bg-primary/5 border-primary/20">
             <Gift className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
               <span className="font-medium text-primary">Complete your profile to maximize your rewards!</span>
@@ -337,6 +314,20 @@ fill="#0c996e" stroke="none">
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="linkedin">LinkedIn Profile (optional)</Label>
+            <div className="relative mt-1">
+              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="linkedin"
+                type="url"
+                value={linkedinProfile}
+                onChange={(e) => setLinkedinProfile(e.target.value)}
                 className="pl-10"
               />
             </div>

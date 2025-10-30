@@ -305,8 +305,23 @@ fill="#0c996e" stroke="none">
             </p>
           </div>
 
-          {/* Info message about completing profile */}
-          <Alert className="bg-primary/5 border-primary/20">
+          <div>
+            <Label htmlFor="linkedin">LinkedIn Profile *</Label>
+            <div className="relative mt-1">
+              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="linkedin"
+                type="url"
+                value={linkedinProfile}
+                onChange={(e) => setLinkedinProfile(e.target.value)}
+                className="pl-10"
+                required
+              />
+            </div>
+          </div>
+
+                    {/* Info message about completing profile */}
+         <Alert className="bg-primary/5 border-primary/20 mt-4">
             <Gift className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
               <span className="font-medium text-primary">Complete your profile to maximize your rewards!</span>
@@ -323,21 +338,6 @@ fill="#0c996e" stroke="none">
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="linkedin">LinkedIn Profile *</Label>
-            <div className="relative mt-1">
-              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="linkedin"
-                type="url"
-                value={linkedinProfile}
-                onChange={(e) => setLinkedinProfile(e.target.value)}
-                className="pl-10"
-                required
               />
             </div>
           </div>

@@ -113,14 +113,26 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       
-      // If user already exists, suggest login
-      if (errorMessage.includes("already exists")) {
+      // Handle different types of errors
+      if (errorMessage.includes("already exists") || errorMessage.includes("phone")) {
         toast({
           title: "Account Exists",
           description: "This phone number is already registered. Please login instead.",
           variant: "destructive"
         });
         setStep('login');
+      } else if (errorMessage.includes("LinkedIn") && errorMessage.includes("already")) {
+        toast({
+          title: "LinkedIn Profile Already Used",
+          description: "This LinkedIn profile is already registered with another account. Please use a different LinkedIn profile or login to your existing account.",
+          variant: "destructive"
+        });
+      } else if (errorMessage.includes("Email") && errorMessage.includes("already")) {
+        toast({
+          title: "Email Already Used",
+          description: "This email is already registered. Please use a different email or login to your existing account.",
+          variant: "destructive"
+        });
       } else {
         toast({
           title: "Registration Failed",

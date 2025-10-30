@@ -84,11 +84,33 @@ a[href*="lovable.dev"] {
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    /* Enable smooth scrolling */
+    scroll-behavior: smooth;
+    /* Prevent overscroll bounce on mobile */
+    overscroll-behavior-y: none;
+    /* Optimize for mobile performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-sans;
     background: var(--gradient-dark);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent scroll chaining */
+    overscroll-behavior: none;
+    /* Optimize scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   /* Prevent flickering on mobile devices */
@@ -99,6 +121,10 @@ a[href*="lovable.dev"] {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     touch-action: manipulation;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   /* Optimize form inputs for mobile */
@@ -114,6 +140,25 @@ a[href*="lovable.dev"] {
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
+
+  /* Optimize all interactive elements */
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Optimize cards and containers */
+  [class*="card"],
+  [class*="Card"] {
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
 }
 
 @layer components {
@@ -123,12 +168,30 @@ a[href*="lovable.dev"] {
     @apply transform transition-all duration-300 hover:scale-105;
     @apply border border-primary/20;
     box-shadow: var(--shadow-glow);
+    /* Hardware acceleration for smooth animations */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    /* Prevent flickering on Android */
+    -webkit-transform: translateZ(0);
+    -webkit-perspective: 1000;
+    -webkit-transform-style: preserve-3d;
   }
 
   .btn-answer {
     @apply bg-card border-2 border-border text-card-foreground p-6 rounded-xl;
     @apply transform transition-all duration-200 hover:scale-[1.02] hover:border-primary/50;
     @apply hover:shadow-lg hover:bg-card/80 cursor-pointer;
+    /* Hardware acceleration for smooth animations */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    /* Prevent flickering on Android */
+    -webkit-transform: translateZ(0);
+    -webkit-perspective: 1000;
+    -webkit-transform-style: preserve-3d;
   }
 
   .btn-answer.correct {
@@ -143,17 +206,29 @@ a[href*="lovable.dev"] {
   .card-glass {
     @apply bg-card/60 backdrop-blur-sm border border-border/50 rounded-[var(--radius-card)];
     box-shadow: var(--shadow-card);
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .card-quiz {
     @apply bg-card border border-border rounded-2xl p-8;
     box-shadow: var(--shadow-card);
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   /* Progress & Animation */
   .progress-glow {
     @apply bg-gradient-to-r from-primary to-secondary rounded-full;
     box-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .text-glow {
@@ -162,50 +237,71 @@ a[href*="lovable.dev"] {
 
   .hover-lift {
     @apply transform transition-all duration-300 hover:scale-105 hover:-translate-y-1;
+    /* Hardware acceleration for smooth animations */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    /* Prevent flickering on Android */
+    -webkit-transform: translateZ(0);
+    -webkit-perspective: 1000;
+    -webkit-transform-style: preserve-3d;
   }
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translate3d(0, 30px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(30px);
+    transform: translate3d(30px, 0, 0);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes celebrationPulse {
   0%, 100% {
-    transform: scale(1);
+    transform: scale3d(1, 1, 1);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale3d(1.05, 1.05, 1);
   }
 }
 
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out;
+  /* Hardware acceleration */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
 .animate-slide-in-right {
   animation: slideInRight 0.4s ease-out;
+  /* Hardware acceleration */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
 .animate-celebration {
   animation: celebrationPulse 0.6s ease-in-out infinite;
+  /* Hardware acceleration */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .text-brevo-brand {
@@ -265,6 +361,24 @@ background-color: #011513;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Mobile-specific background optimization */
+@media screen and (max-width: 768px) {
+  .bg-hero,
+  .bg-home-hero {
+    /* Use scroll instead of fixed on mobile for better performance */
+    background-attachment: scroll;
+    /* Enable hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
 }
 .bg-hero-card {
   background: linear-gradient(rgb(2 40 36 / 50%), rgba(0, 0, 0, 0.5)), url('./assets/bg-hero.jpg');

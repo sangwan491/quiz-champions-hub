@@ -18,7 +18,7 @@ const QuizPage = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [quiz, setQuiz] = useState<ShuffledQuiz | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [answers, setAnswers] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<Array<{ questionId: string; selectedAnswer: number | null }>>([]);
   const [startTime] = useState(Date.now());
   const [isLoading, setIsLoading] = useState(true);
   const [quizEnded, setQuizEnded] = useState(false);
@@ -136,7 +136,7 @@ const QuizPage = () => {
       setSessionStartedAt(started.startedAt);
 
       // Server now returns sanitized questions; no hydration from bank
-      let hydratedQuiz: Quiz = started.quiz as Quiz;
+      const hydratedQuiz: Quiz = started.quiz as Quiz;
 
       const key = makeProgressKey(userData.id, quizData.id);
       const savedRaw = localStorage.getItem(key);
@@ -168,7 +168,7 @@ const QuizPage = () => {
             // Fast-forward by time elapsed since last tick
             let idx = saved.currentQuestionIndex || 0;
             let tLeft = saved.timeLeft ?? ((savedQuiz.questions?.[idx] as Question)?.time || 30);
-            let updatedAnswers = Array.isArray(saved.answers) ? [...saved.answers] : [];
+            const updatedAnswers = Array.isArray(saved.answers) ? [...saved.answers] : [];
             let delta = Math.max(0, Math.floor((Date.now() - (saved.lastTickAt || Date.now())) / 1000));
             const total = savedQuiz.questions.length;
 
@@ -239,7 +239,9 @@ const QuizPage = () => {
           startedAt: started.startedAt,
         };
         localStorage.setItem(keyFresh, JSON.stringify(payload));
-      } catch {}
+      } catch {
+        // Ignore localStorage errors - non-critical
+      }
 
     } catch (error) {
       console.error('Error initializing quiz:', error);
@@ -280,12 +282,14 @@ const QuizPage = () => {
         quiz,
         currentQuestionIndex,
         timeLeft,
-        answers: answers as any,
+        answers,
         lastTickAt: Date.now(),
         startedAt: sessionStartedAt || undefined,
       };
       localStorage.setItem(key, JSON.stringify(payload));
-    } catch {}
+    } catch {
+      // Ignore localStorage errors - non-critical
+    }
   }, [quiz, user, currentQuestionIndex, timeLeft, answers, quizEnded, sessionId, sessionStartedAt]);
 
   const recordAnswer = (answerIndex: number | null) => {
@@ -299,16 +303,21 @@ const QuizPage = () => {
     };
     setAnswers(updated);
     const isLast = currentQuestionIndex + 1 >= quiz.questions.length;
-    if (isLast) {
-      // Complete immediately with the updated answers to avoid race condition
-      completeQuiz(updated);
-    } else {
-      const nextIdx = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(nextIdx);
-      setSelectedAnswer(null);
-      setShowAnswer(false);
-      setTimeLeft((quiz.questions[nextIdx] as Question).time || 30);
-    }
+    
+    // Move to next question or complete quiz after a brief delay
+    setTimeout(() => {
+      if (isLast) {
+        // Complete quiz only at the very end
+        completeQuiz(updated);
+      } else {
+        // Move to next question
+        const nextIdx = currentQuestionIndex + 1;
+        setCurrentQuestionIndex(nextIdx);
+        setSelectedAnswer(null);
+        setShowAnswer(false);
+        setTimeLeft((quiz.questions[nextIdx] as Question).time || 30);
+      }
+    }, 500); // Brief delay to show answer was recorded
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
@@ -318,7 +327,7 @@ const QuizPage = () => {
 
   // nextQuestion logic is handled inside recordAnswer to keep state consistent
 
-  const completeQuiz = async (finalAnswers?: any[]) => {
+  const completeQuiz = async (finalAnswers?: Array<{ questionId: string; selectedAnswer: number | null }>) => {
     if (!user || !quiz || quizEnded) return;
 
     setQuizEnded(true);
@@ -336,7 +345,9 @@ const QuizPage = () => {
       try {
         const key = makeProgressKey(user.id, quiz.id);
         localStorage.removeItem(key);
-      } catch {}
+      } catch {
+        // Ignore localStorage errors - non-critical
+      }
 
       // Store result for display on results page (from server)
       const result = {

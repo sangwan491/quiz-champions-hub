@@ -533,8 +533,7 @@ const QuizPage = () => {
 
             {/* Question */}
             <h2 className="text-2xl font-bold leading-relaxed">
-              {(currentQuestion as Question).question
-            }
+              {(currentQuestion as Question).question}
             </h2>
 
             {/* Answer Options */}

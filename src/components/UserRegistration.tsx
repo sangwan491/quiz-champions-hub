@@ -68,18 +68,26 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       return;
     }
 
-    if (linkedinProfile.trim()) {
-      const url = linkedinProfile.trim();
-      // Accept linkedin.com/in/ or company pages; require https and domain linkedin.com
-      const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+\/?$/i;
-      if (!linkedinRegex.test(url)) {
-        toast({
-          title: "Invalid LinkedIn URL",
-          description: "Use a full LinkedIn URL like https://www.linkedin.com/in/username",
-          variant: "destructive"
-        });
-        return;
-      }
+    // LinkedIn is mandatory
+    if (!linkedinProfile.trim()) {
+      toast({
+        title: "LinkedIn Required",
+        description: "Please enter your LinkedIn profile URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const url = linkedinProfile.trim();
+    // Accept linkedin.com/in/ or company pages; require https and domain linkedin.com
+    const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+\/?$/i;
+    if (!linkedinRegex.test(url)) {
+      toast({
+        title: "Invalid LinkedIn URL",
+        description: "Use a full LinkedIn URL like https://www.linkedin.com/in/username",
+        variant: "destructive"
+      });
+      return;
     }
 
     setIsLoading(true);
@@ -87,7 +95,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
     try {
       const user = await api.registerUser({
         name: name.trim(),
-        linkedinProfile: linkedinProfile.trim() || undefined,
+        linkedinProfile: linkedinProfile.trim(),
         email: email.trim() || undefined,
         phone: normalizedPhone,
       });
@@ -100,11 +108,13 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
         description: "Now please set a password for your account."
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
       
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      
       // If user already exists, suggest login
-      if (error?.message?.includes("already exists")) {
+      if (errorMessage.includes("already exists")) {
         toast({
           title: "Account Exists",
           description: "This phone number is already registered. Please login instead.",
@@ -114,7 +124,7 @@ const UserRegistration = ({ onUserRegistered }: UserRegistrationProps) => {
       } else {
         toast({
           title: "Registration Failed",
-          description: error?.message || "Failed to register. Please try again.",
+          description: errorMessage || "Failed to register. Please try again.",
           variant: "destructive"
         });
       }
@@ -282,19 +292,58 @@ fill="#0c996e" stroke="none">
           <div>
             <Label htmlFor="phone">Phone *</Label>
             <div className="relative mt-1">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="pl-10"
+                placeholder="Enter your 10-digit mobile number"
+                autoComplete="tel"
+                inputMode="numeric"
                 required
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Should be valid and will be verified for prize distribution
             </p>
+          </div>
+
+          <div>
+            <Label htmlFor="linkedin">LinkedIn Profile *</Label>
+            <div className="relative mt-1">
+              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="linkedin"
+                type="url"
+                value={linkedinProfile}
+                onChange={(e) => setLinkedinProfile(e.target.value)}
+                className="pl-10"
+                placeholder="https://www.linkedin.com/in/yourprofile"
+                autoComplete="url"
+                required
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Enter your full LinkedIn profile URL
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email (optional)</Label>
+            <div className="relative mt-1">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10"
+                placeholder="your.email@example.com"
+                autoComplete="email"
+              />
+            </div>
           </div>
 
           {/* Info message about completing profile */}
@@ -304,34 +353,6 @@ fill="#0c996e" stroke="none">
               <span className="font-medium text-primary">Complete your profile to maximize your rewards!</span>
             </AlertDescription>
           </Alert>
-
-          <div>
-            <Label htmlFor="email">Email (optional)</Label>
-            <div className="relative mt-1">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="linkedin">LinkedIn Profile (optional)</Label>
-            <div className="relative mt-1">
-              <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="linkedin"
-                type="url"
-                value={linkedinProfile}
-                onChange={(e) => setLinkedinProfile(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
 
           <div className="flex gap-3 pt-4">
             <Button 

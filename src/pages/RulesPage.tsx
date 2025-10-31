@@ -44,11 +44,15 @@ const RulesPage = () => {
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>All participants must register with valid information including name and phone number.</span>
+                    <span>All participants must register with valid information including name, phone number, and <strong className="text-foreground">LinkedIn profile (mandatory)</strong>.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>Each participant is allowed to create only one account using their unique phone number.</span>
+                    <span><strong className="text-foreground">LinkedIn profile is mandatory</strong> for all participants and must be a valid, active profile.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Each participant is allowed to create only one account using their unique phone number and LinkedIn profile.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
@@ -140,19 +144,27 @@ const RulesPage = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span><strong className="text-foreground">Winners with complete profiles (email & LinkedIn) will receive maximized prizes and perks.</strong></span>
+                    <span><strong className="text-foreground">LinkedIn profile is mandatory</strong> for prize eligibility and will be verified before distribution.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>Prize distribution will occur at the Brevo booth during React India 2025.</span>
+                    <span><strong className="text-foreground">All prizes will be distributed after verification</strong> of participant details including phone number, LinkedIn profile, and presence at the event.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>Winners must be present at the event to claim their prizes.</span>
+                    <span><strong className="text-foreground text-lg">Prize Eligibility: One quiz winner is eligible for only ONE quiz prize AND ONE master prize.</strong> Winners are NOT eligible for multiple quiz rewards across different quiz sessions.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>Valid contact information (phone number) is required for prize verification and distribution.</span>
+                    <span>Prize distribution will occur at the Brevo booth during React India 2025 after successful verification.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Winners must be present at the event to claim their prizes and complete verification.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Valid contact information (phone number, LinkedIn profile, and email if provided) is required for prize verification and distribution.</span>
                   </li>
                 </ul>
               </div>

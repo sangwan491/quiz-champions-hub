@@ -321,7 +321,8 @@ const QuizPage = () => {
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
-    if (!currentQuestion || !quiz) return;
+    // Prevent selecting answer if already showing answer or quiz ended
+    if (showAnswer || !currentQuestion || !quiz || quizEnded) return;
     recordAnswer(answerIndex);
   };
 
@@ -458,8 +459,8 @@ const QuizPage = () => {
             </div>
             {/* Circular Timer */}
             <div className="relative">
-              <div className="relative w-20 h-20">
-                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+                <svg className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90" viewBox="0 0 36 36">
                   {/* Background circle */}
                   <path
                     d="M18 2.0845
@@ -467,7 +468,7 @@ const QuizPage = () => {
                       a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke="hsl(var(--border))"
-                    strokeWidth="2"
+                    strokeWidth="2.5"
                   />
                   {/* Progress circle */}
                   <path
@@ -476,7 +477,7 @@ const QuizPage = () => {
                       a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke={timeLeft <= 10 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
-                    strokeWidth="3"
+                    strokeWidth="3.5"
                     strokeDasharray={`${(timeLeft / ((currentQuestion as Question)?.time || 30)) * 100}, 100`}
                     strokeLinecap="round"
                     className={`transition-all duration-1000 ${timeLeft <= 10 ? 'animate-pulse drop-shadow-lg' : ''}`}
@@ -487,8 +488,8 @@ const QuizPage = () => {
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <Clock className={`w-4 h-4 mx-auto mb-1 ${timeLeft <= 10 ? 'text-destructive animate-bounce' : 'text-primary'}`} />
-                    <span className={`font-bold text-sm ${timeLeft <= 10 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
+                    <Clock className={`w-3 h-3 sm:w-4 sm:h-4 mx-auto mb-0.5 ${timeLeft <= 10 ? 'text-destructive animate-bounce' : 'text-primary'}`} />
+                    <span className={`font-bold text-base sm:text-lg ${timeLeft <= 10 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
                       {timeLeft}
                     </span>
                   </div>
@@ -540,10 +541,10 @@ const QuizPage = () => {
             <div className="grid gap-4">
               {(currentQuestion as Question).options.map((option, index) => (
                 <button
-                  key={index}
+                  key={`${(currentQuestion as Question).id}-${index}`}
                   onClick={() => handleAnswerSelect(index)}
-                  disabled={showAnswer}
-                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200 group hover-lift animate-slide-in-right`}
+                  disabled={showAnswer || quizEnded}
+                  className={`${getAnswerClass(index)} flex items-center justify-between text-left transition-all duration-200 group hover-lift animate-slide-in-right ${showAnswer || quizEnded ? 'opacity-60 cursor-not-allowed' : ''}`}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-center gap-3">
@@ -552,9 +553,11 @@ const QuizPage = () => {
                     </span>
                     <span className="group-hover:text-primary transition-colors duration-200">{option}</span>
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                  </div>
+                  {!showAnswer && !quizEnded && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>

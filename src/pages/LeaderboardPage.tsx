@@ -29,7 +29,9 @@ const LeaderboardPage = () => {
         const u = JSON.parse(saved);
         if (u?.id) setCurrentUserId(u.id);
       }
-    } catch {}
+    } catch {
+      // Ignore localStorage errors
+    }
   }, []);
 
   useEffect(() => {
@@ -100,7 +102,16 @@ const LeaderboardPage = () => {
         setAttemptCounts({});
       }
       
-      setLeaderboard(results.sort((a, b) => b.score - a.score));
+      // Sort by score (descending), then by time (ascending - faster is better)
+      const sortedResults = [...results].sort((a, b) => {
+        // First, compare scores (higher score wins)
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        // If scores are equal, compare time (lower time wins)
+        return a.timeSpent - b.timeSpent;
+      });
+      setLeaderboard(sortedResults);
       
       if (showToast) {
         toast({

@@ -1466,7 +1466,7 @@ Deno.serve(async (req: Request) => {
           } catch {}
         }
         const list = await rest(
-          `/quiz_sessions?select=*&quiz_id=eq.${quizId}&completed_at=not.is.null&order=score.desc,started_at.asc`
+          `/quiz_sessions?select=*&quiz_id=eq.${quizId}&completed_at=not.is.null&order=score.desc`
         );
         const quiz = await fetchQuizRaw(quizId);
         const mapped: any[] = [];

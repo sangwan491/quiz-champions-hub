@@ -395,6 +395,14 @@ export const api = {
     });
   },
 
+  updateQuizTime: async (sessionId: string, timeSpent: number): Promise<void> => {
+    return fetchJson(`${API_BASE}/admin/times/${sessionId}`, {
+      method: 'PUT',
+      headers: auth.getHeaders(),
+      body: JSON.stringify({ timeSpent }),
+    });
+  },
+
   resetUserQuiz: async (userId: string, quizId: string): Promise<void> => {
     const response = await fetch(`${API_BASE}/admin/users/${userId}/quizzes/${quizId}/reset`, {
       method: 'DELETE',

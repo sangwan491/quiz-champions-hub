@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Trophy, Medal, Award, Target, RefreshCw } from "lucide-react";
+import { Trophy, Medal, Award, Target, RefreshCw, Edit2, Save, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { api, type QuizResult, type Quiz } from "@/data/questions";
 
@@ -16,18 +17,22 @@ const LeaderboardPage = () => {
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editTimeValue, setEditTimeValue] = useState<string>("");
   const PAGE_SIZE = 10;
   const { toast } = useToast();
 
   useEffect(() => {
     loadQuizzes();
     loadLeaderboard();
-    // Get logged-in user id
+    // Get logged-in user id and admin status
     try {
       const saved = localStorage.getItem("currentUser");
       if (saved) {
         const u = JSON.parse(saved);
         if (u?.id) setCurrentUserId(u.id);
+        if (u?.isAdmin) setIsAdmin(true);
       }
     } catch {
       // Ignore localStorage errors
@@ -186,6 +191,46 @@ const LeaderboardPage = () => {
     }
   };
 
+  const handleEditTime = (sessionId: string, currentTimeSpent: number) => {
+    setEditingTimeId(sessionId);
+    setEditTimeValue(currentTimeSpent.toString());
+  };
+
+  const handleCancelEditTime = () => {
+    setEditingTimeId(null);
+    setEditTimeValue("");
+  };
+
+  const handleSaveTime = async (sessionId: string) => {
+    const newTime = Number.parseInt(editTimeValue);
+    if (Number.isNaN(newTime) || newTime < 0) {
+      toast({
+        title: "Invalid Time",
+        description: "Please enter a valid positive number for time in seconds.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await api.updateQuizTime(sessionId, newTime);
+      toast({
+        title: "Time Updated",
+        description: "Quiz time has been updated successfully."
+      });
+      setEditingTimeId(null);
+      setEditTimeValue("");
+      await loadLeaderboard();
+    } catch (error) {
+      console.error('Failed to update time:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update quiz time. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -338,7 +383,7 @@ const LeaderboardPage = () => {
               return (
                 <Card 
                   key={result.id} 
-                  className={`p-6 transition-all duration-300 hover:scale-[1.02] animate-fade-in-up ${getRankClass(rank)}`}
+                  className={`group p-6 transition-all duration-300 hover:scale-[1.02] animate-fade-in-up ${getRankClass(rank)}`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <div className="flex items-center justify-between">
@@ -373,8 +418,51 @@ const LeaderboardPage = () => {
                       </div>
 
                       <div className="hidden md:block">
-                        <div className="text-lg font-semibold">{formatTime(result.timeSpent)}</div>
-                        <p className="text-sm text-muted-foreground">Time</p>
+                        {editingTimeId === result.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={editTimeValue}
+                              onChange={(e) => setEditTimeValue(e.target.value)}
+                              className="w-20 h-8 text-sm"
+                              placeholder="Seconds"
+                              min="0"
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSaveTime(result.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Save className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelEditTime}
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className="text-lg font-semibold">{formatTime(result.timeSpent)}</div>
+                              <p className="text-sm text-muted-foreground">Time</p>
+                            </div>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEditTime(result.id, result.timeSpent)}
+                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

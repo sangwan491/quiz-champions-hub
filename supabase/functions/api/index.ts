@@ -652,6 +652,64 @@ Deno.serve(async (req: Request) => {
       return json({ message: "Score updated successfully" });
     }
 
+    // Admin: Update quiz time (started_at and completed_at)
+    if (path.match(/^\/api\/admin\/times\/[^/]+$/) && req.method === "PUT") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const sessionId = path.split("/")[4];
+      const body = await parseJson<{ startedAt?: string; completedAt?: string; timeSpent?: number }>(req);
+
+      // Get session to verify it exists
+      const sessions = await rest(`/quiz_sessions?select=*&id=eq.${sessionId}`);
+      const session = sessions?.[0];
+      if (!session) {
+        return json({ error: "Quiz session not found" }, { status: 404 });
+      }
+
+      const updates: Record<string, unknown> = {};
+
+      // Option 1: Update timeSpent directly by adjusting completed_at
+      if (typeof body.timeSpent === 'number') {
+        if (body.timeSpent < 0) {
+          return json({ error: "Time spent must be a positive number" }, { status: 400 });
+        }
+        // Calculate new completed_at based on started_at + new timeSpent
+        const startedAt = new Date(session.started_at);
+        const newCompletedAt = new Date(startedAt.getTime() + body.timeSpent * 1000);
+        updates.completed_at = newCompletedAt.toISOString();
+      } else {
+        // Option 2: Update started_at and/or completed_at directly
+        if (body.startedAt) {
+          const startedAt = new Date(body.startedAt);
+          if (isNaN(startedAt.getTime())) {
+            return json({ error: "Invalid startedAt date format" }, { status: 400 });
+          }
+          updates.started_at = startedAt.toISOString();
+        }
+
+        if (body.completedAt) {
+          const completedAt = new Date(body.completedAt);
+          if (isNaN(completedAt.getTime())) {
+            return json({ error: "Invalid completedAt date format" }, { status: 400 });
+          }
+          updates.completed_at = completedAt.toISOString();
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return json({ error: "No valid time fields provided (startedAt, completedAt, or timeSpent)" }, { status: 400 });
+      }
+
+      // Update time
+      await rest(`/quiz_sessions?id=eq.${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+
+      return json({ message: "Time updated successfully", updates });
+    }
+
     // Admin: Reset user quiz (delete session to allow retake)
     if (path.match(/^\/api\/admin\/users\/[^/]+\/quizzes\/[^/]+\/reset$/) && req.method === "DELETE") {
       const admin = await requireAdmin(req);

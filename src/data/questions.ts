@@ -387,6 +387,26 @@ export const api = {
     });
   },
 
+  updateQuizScore: async (sessionId: string, newScore: number): Promise<void> => {
+    return fetchJson(`${API_BASE}/admin/scores/${sessionId}`, {
+      method: 'PUT',
+      headers: auth.getHeaders(),
+      body: JSON.stringify({ score: newScore }),
+    });
+  },
+
+  resetUserQuiz: async (userId: string, quizId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}/quizzes/${quizId}/reset`, {
+      method: 'DELETE',
+      headers: auth.getHeaders(),
+    });
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) throw new Error('Failed to reset quiz');
+  },
+
   // Get active quiz for players
   getActiveQuizzes: async (): Promise<Quiz[]> => {
     const response = await fetch(`${API_BASE}/quizzes/active`);

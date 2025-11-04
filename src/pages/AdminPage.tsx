@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X, RotateCcw, Clock, Users, ToggleLeft, ToggleRight, Link as LinkIcon, Unlink } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, RotateCcw, Clock, Users, ToggleLeft, ToggleRight, Link as LinkIcon, Unlink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -131,6 +131,12 @@ const AdminPage = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
+  // Loading states for async operations
+  const [isSavingQuestion, setIsSavingQuestion] = useState(false);
+  const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
+  const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
+  const [isDeletingQuiz, setIsDeletingQuiz] = useState(false);
+
   const [quizFormData, setQuizFormData] = useState({
     title: "",
     description: "",
@@ -235,6 +241,7 @@ const AdminPage = () => {
     }
 
     try {
+      setIsCreatingQuiz(true);
       const newQuiz = await api.createQuiz(quizFormData);
       const updated = [...quizzes, newQuiz];
       setQuizzes(updated);
@@ -253,11 +260,14 @@ const AdminPage = () => {
         description: "Failed to create quiz",
         variant: "destructive"
       });
+    } finally {
+      setIsCreatingQuiz(false);
     }
   };
 
   const handleDeleteQuiz = async (quizId: string) => {
     try {
+      setIsDeletingQuiz(true);
       await api.deleteQuiz(quizId);
       const updatedQuizzes = quizzes.filter(q => q.id !== quizId);
       setQuizzes(updatedQuizzes);
@@ -279,6 +289,8 @@ const AdminPage = () => {
         description: "Failed to delete quiz",
         variant: "destructive"
       });
+    } finally {
+      setIsDeletingQuiz(false);
     }
   };
 
@@ -348,6 +360,7 @@ const AdminPage = () => {
     parsedTime = Math.max(5, Math.min(600, parsedTime));
 
     try {
+      setIsSavingQuestion(true);
       const payload = { ...questionFormData, time: parsedTime };
       let updatedQuestion;
       if (editingQuestion) {
@@ -364,6 +377,8 @@ const AdminPage = () => {
       cancelQuestionEdit();
     } catch (error) {
       toast({ title: "Error", description: "Failed to save question", variant: "destructive" });
+    } finally {
+      setIsSavingQuestion(false);
     }
   };
 
@@ -371,6 +386,7 @@ const AdminPage = () => {
     if (!selectedQuiz) return;
 
     try {
+      setIsDeletingQuestion(true);
       await api.deleteQuestion(selectedQuiz.id, questionId);
       
       // Refresh all admin data (quizzes + question bank) while preserving selection
@@ -380,6 +396,8 @@ const AdminPage = () => {
       toast({ title: "Success", description: "Question deleted successfully" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete question", variant: "destructive" });
+    } finally {
+      setIsDeletingQuestion(false);
     }
   };
 
@@ -592,11 +610,11 @@ const AdminPage = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button onClick={handleCreateQuiz} type="button">
-                      <Save className="w-4 h-4 mr-2" />
-                      Create Quiz
+                    <Button onClick={handleCreateQuiz} type="button" disabled={isCreatingQuiz}>
+                      {isCreatingQuiz ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isCreatingQuiz ? 'Creating...' : 'Create Quiz'}
                     </Button>
-                    <Button variant="outline" onClick={() => setIsAddingQuiz(false)} type="button">
+                    <Button variant="outline" onClick={() => setIsAddingQuiz(false)} type="button" disabled={isCreatingQuiz}>
                       Cancel
                     </Button>
                   </div>
@@ -765,11 +783,11 @@ const AdminPage = () => {
 
                   {/* Action Buttons */}
                   <div className="flex gap-3">
-                    <Button onClick={saveQuestion} className="flex items-center gap-2" type="button">
-                      <Save className="w-4 h-4" />
-                      {editingQuestion ? 'Update' : 'Save'} Question
+                    <Button onClick={saveQuestion} className="flex items-center gap-2" type="button" disabled={isSavingQuestion}>
+                      {isSavingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      {isSavingQuestion ? 'Saving...' : (editingQuestion ? 'Update' : 'Save')} Question
                     </Button>
-                    <Button variant="outline" onClick={cancelQuestionEdit} type="button">
+                    <Button variant="outline" onClick={cancelQuestionEdit} type="button" disabled={isSavingQuestion}>
                       Cancel
                     </Button>
                   </div>
@@ -890,11 +908,11 @@ const AdminPage = () => {
                               </div>
                             </div>
                             <div className="flex gap-3">
-                              <Button onClick={saveQuestion} className="flex items-center gap-2" type="button">
-                                <Save className="w-4 h-4" />
-                                Save
+                              <Button onClick={saveQuestion} className="flex items-center gap-2" type="button" disabled={isSavingQuestion}>
+                                {isSavingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {isSavingQuestion ? 'Saving...' : 'Save'}
                               </Button>
-                              <Button variant="outline" onClick={cancelQuestionEdit} type="button">
+                              <Button variant="outline" onClick={cancelQuestionEdit} type="button" disabled={isSavingQuestion}>
                                 Cancel
                               </Button>
                             </div>
@@ -942,8 +960,9 @@ const AdminPage = () => {
                           onClick={() => deleteQuestion(question.id)}
                           className="text-destructive hover:text-destructive"
                           type="button"
+                          disabled={isDeletingQuestion}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isDeletingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </Button>
                       </div>
                     </div>
@@ -1121,9 +1140,10 @@ const AdminPage = () => {
                         onClick={() => handleDeleteQuiz(quiz.id)}
                         className="text-destructive hover:text-destructive w-full sm:w-auto"
                         type="button"
+                        disabled={isDeletingQuiz}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Quiz
+                        {isDeletingQuiz ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                        {isDeletingQuiz ? 'Deleting...' : 'Delete Quiz'}
                       </Button>
                     </div>
                   </div>

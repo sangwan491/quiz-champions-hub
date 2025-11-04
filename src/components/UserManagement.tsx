@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, KeyRound, Trash2, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, KeyRound, Trash2, Trophy, ChevronLeft, ChevronRight, Edit2, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,22 @@ export function UserManagement() {
     scores: [],
   });
   const [isLoadingScores, setIsLoadingScores] = useState(false);
+
+  // Edit Score Dialog
+  const [editScoreDialog, setEditScoreDialog] = useState<{ open: boolean; score: QuizResult | null }>({
+    open: false,
+    score: null,
+  });
+  const [editedScore, setEditedScore] = useState<number>(0);
+  const [isEditingScore, setIsEditingScore] = useState(false);
+
+  // Reset Quiz Dialog
+  const [resetQuizDialog, setResetQuizDialog] = useState<{ open: boolean; score: QuizResult | null; user: UserWithAdmin | null }>({
+    open: false,
+    score: null,
+    user: null,
+  });
+  const [isResettingQuiz, setIsResettingQuiz] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -193,6 +209,68 @@ export function UserManagement() {
     }
   };
 
+  const handleEditScore = async () => {
+    if (!editScoreDialog.score) return;
+
+    try {
+      setIsEditingScore(true);
+      await api.updateQuizScore(editScoreDialog.score.id, editedScore);
+      
+      toast({
+        title: "Success",
+        description: "Score updated successfully",
+      });
+
+      // Refresh scores list
+      if (scoresDialog.user) {
+        const scores = await api.getUserScores(scoresDialog.user.id);
+        setScoresDialog({ ...scoresDialog, scores });
+      }
+      
+      setEditScoreDialog({ open: false, score: null });
+    } catch (error: any) {
+      console.error('Error updating score:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update score",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditingScore(false);
+    }
+  };
+
+  const handleResetQuiz = async () => {
+    if (!resetQuizDialog.score || !resetQuizDialog.user) return;
+
+    try {
+      setIsResettingQuiz(true);
+      await api.resetUserQuiz(resetQuizDialog.user.id, resetQuizDialog.score.quizId);
+      
+      toast({
+        title: "Success",
+        description: `Quiz reset successfully. ${resetQuizDialog.user.name} can now retake this quiz.`,
+      });
+
+      // Refresh scores list
+      if (scoresDialog.user) {
+        const scores = await api.getUserScores(scoresDialog.user.id);
+        setScoresDialog({ ...scoresDialog, scores });
+      }
+      
+      setResetQuizDialog({ open: false, score: null, user: null });
+    } catch (error: any) {
+      console.error('Error resetting quiz:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset quiz",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResettingQuiz(false);
+    }
+  };
+
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -292,27 +370,28 @@ export function UserManagement() {
                             size="sm"
                             variant="outline"
                             onClick={() => setResetPasswordDialog({ open: true, user })}
-                            disabled={user.isAdmin}
+                            disabled={user.isAdmin || isResetting}
                             title={user.isAdmin ? "Cannot modify admin users" : "Reset password"}
                           >
-                            <KeyRound className="h-4 w-4" />
+                            {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewScores(user)}
+                            disabled={isLoadingScores}
                           >
-                            <Trophy className="h-4 w-4" />
+                            {isLoadingScores ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => setDeleteDialog({ open: true, user })}
-                            disabled={user.isAdmin}
+                            disabled={user.isAdmin || isDeleting}
                             className="text-destructive hover:text-destructive"
                             title={user.isAdmin ? "Cannot delete admin users" : "Delete user"}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </Button>
                         </div>
                       </TableCell>
@@ -420,6 +499,7 @@ export function UserManagement() {
               Cancel
             </Button>
             <Button onClick={handleResetPassword} disabled={isResetting}>
+              {isResetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isResetting ? "Resetting..." : "Reset Password"}
             </Button>
           </DialogFooter>
@@ -447,6 +527,7 @@ export function UserManagement() {
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isDeleting ? "Deleting..." : "Delete User"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -480,16 +561,38 @@ export function UserManagement() {
                 {scoresDialog.scores.map((score) => (
                   <Card key={score.id}>
                     <CardContent className="pt-6">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="space-y-1 flex-1">
                           <h4 className="font-semibold">Quiz #{score.quizId}</h4>
                           <p className="text-sm text-muted-foreground">
                             Completed {new Date(score.completedAt).toLocaleString()}
                           </p>
                         </div>
-                        <Badge variant="default" className="text-lg px-4 py-1">
-                          {score.score} pts
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="text-lg px-4 py-1">
+                            {score.score} pts
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditScoreDialog({ open: true, score });
+                              setEditedScore(score.score);
+                            }}
+                            title="Edit score"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setResetQuizDialog({ open: true, score, user: scoresDialog.user })}
+                            className="text-orange-600 hover:text-orange-700"
+                            title="Reset quiz for this user"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -507,6 +610,77 @@ export function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Score Dialog */}
+      <Dialog open={editScoreDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setEditScoreDialog({ open: false, score: null });
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Score</DialogTitle>
+            <DialogDescription>
+              Update the score for this quiz attempt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editScore">Score</Label>
+              <Input
+                id="editScore"
+                type="number"
+                value={editedScore}
+                onChange={(e) => setEditedScore(parseInt(e.target.value) || 0)}
+                min={0}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Current score: {editScoreDialog.score?.score} points
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditScoreDialog({ open: false, score: null })}
+              disabled={isEditingScore}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditScore} disabled={isEditingScore}>
+              {isEditingScore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditingScore ? "Saving..." : "Save Score"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Quiz Confirmation Dialog */}
+      <AlertDialog open={resetQuizDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setResetQuizDialog({ open: false, score: null, user: null });
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Quiz Attempt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete <strong>{resetQuizDialog.user?.name}</strong>'s attempt for Quiz #{resetQuizDialog.score?.quizId} and allow them to retake it. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResettingQuiz}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetQuiz}
+              disabled={isResettingQuiz}
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              {isResettingQuiz && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isResettingQuiz ? "Resetting..." : "Reset Quiz"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -625,6 +625,55 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Admin: Update quiz score
+    if (path.match(/^\/api\/admin\/scores\/[^/]+$/) && req.method === "PUT") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const sessionId = path.split("/")[4];
+      const body = await parseJson<{ score: number }>(req);
+
+      if (typeof body.score !== 'number') {
+        return json({ error: "Score must be a number" }, { status: 400 });
+      }
+
+      // Get session to verify it exists
+      const sessions = await rest(`/quiz_sessions?select=*&id=eq.${sessionId}`);
+      if (!sessions?.[0]) {
+        return json({ error: "Quiz session not found" }, { status: 404 });
+      }
+
+      // Update score
+      await rest(`/quiz_sessions?id=eq.${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ score: body.score }),
+      });
+
+      return json({ message: "Score updated successfully" });
+    }
+
+    // Admin: Reset user quiz (delete session to allow retake)
+    if (path.match(/^\/api\/admin\/users\/[^/]+\/quizzes\/[^/]+\/reset$/) && req.method === "DELETE") {
+      const admin = await requireAdmin(req);
+      if (admin instanceof Response) return admin;
+
+      const userId = path.split("/")[4];
+      const quizId = path.split("/")[6];
+
+      // Get user to verify they exist
+      const users = await rest(`/users?select=*&id=eq.${userId}`);
+      if (!users?.[0]) {
+        return json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Delete all sessions for this user and quiz
+      await rest(`/quiz_sessions?user_id=eq.${userId}&quiz_id=eq.${quizId}`, { 
+        method: "DELETE" 
+      });
+
+      return json({ message: "Quiz reset successfully. User can now retake this quiz." });
+    }
+
     // Questions - bank
     if (path === "/api/questions") {
       if (req.method === "GET") {
@@ -1120,38 +1169,49 @@ Deno.serve(async (req: Request) => {
       const now = new Date();
       if (existing) {
         if (existing.completed_at) {
-          return json(
-            { error: "User has already completed this quiz" },
-            { status: 400 }
-          );
-        }
-        const started = new Date(existing.started_at);
-        const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
-        const expired = maxTime > 0 && elapsed > maxTime + 5;
-        if (expired) {
-          // Auto-finalize with zero score
-          const cappedCompletedAt = new Date(
-            Math.min(
-              now.getTime(),
-              new Date(started.getTime() + maxTime * 1000).getTime()
-            )
-          ).toISOString();
-          await rest(`/quiz_sessions?id=eq.${existing.id}`, {
-            method: "PATCH",
-            body: JSON.stringify({ completed_at: cappedCompletedAt, score: 0 }),
+          // Check if user is admin - admins can retake quizzes
+          const user = await fetchUser(auth.userId);
+          const isAdmin = !!user?.is_admin;
+          
+          if (!isAdmin) {
+            return json(
+              { error: "User has already completed this quiz" },
+              { status: 400 }
+            );
+          }
+          
+          // Admin can retake - delete existing session
+          await rest(`/quiz_sessions?id=eq.${existing.id}`, { method: "DELETE" });
+          // Will create new session below
+        } else {
+          const started = new Date(existing.started_at);
+          const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
+          const expired = maxTime > 0 && elapsed > maxTime + 5;
+          if (expired) {
+            // Auto-finalize with zero score
+            const cappedCompletedAt = new Date(
+              Math.min(
+                now.getTime(),
+                new Date(started.getTime() + maxTime * 1000).getTime()
+              )
+            ).toISOString();
+            await rest(`/quiz_sessions?id=eq.${existing.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ completed_at: cappedCompletedAt, score: 0 }),
+            });
+            return json(
+              { error: "Time window expired. Quiz already completed." },
+              { status: 400 }
+            );
+          }
+          // Session exists and is within window, return it with quiz payload
+          return json({
+            sessionId: existing.id,
+            startedAt: existing.started_at,
+            message: "Session ready",
+            quiz: quizPayload,
           });
-          return json(
-            { error: "Time window expired. Quiz already completed." },
-            { status: 400 }
-          );
         }
-        // Session exists and is within window, return it with quiz payload
-        return json({
-          sessionId: existing.id,
-          startedAt: existing.started_at,
-          message: "Session ready",
-          quiz: quizPayload,
-        });
       }
 
       // Create new session
